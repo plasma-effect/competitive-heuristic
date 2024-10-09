@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+# Third Party
+boost*/
+boost*.tar.gz
+ac-library*/
+ac-library-*.tar.gz
+
+# Others
+.vscode/
+sample/out*.*
+debug.txt
+tmp/
