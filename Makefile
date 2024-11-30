@@ -1,10 +1,13 @@
-SRC = main.cpp
-OBJ = $(SRC:.cpp=.o)
-CXXFLAGS = -std=c++20 -O3 -Iboost/include -Iac-library
+.PHONY: all
+all: main.o
 
-$(OBJ): $(SRC)
-	g++ $^ $(CXXFLAGS) -o $@
+CXXFLAGS = -std=c++20 -O3 -Iboost/include -Iac-library -DLOCAL_DEBUG
+
+%.o: %.cpp
+	g++ -MMD -MP $< $(CXXFLAGS) -o $@
+
+-include main.d
 
 .PHONY: clean
 clean:
-	rm *.o
+	rm -f *.o *.d
