@@ -34,6 +34,12 @@ std::size_t lower_bound_index(std::vector<T> const& vec, T const& v) {
   return std::ranges::lower_bound(vec, v) - vec.begin();
 }
 template <typename T> using pair = std::pair<T, T>;
+template <typename T> T const& chmax(T& lhs, T const& v) {
+  return lhs = std::max(lhs, v);
+}
+template <typename T> T const& chmin(T& lhs, T const& v) {
+  return lhs = std::min(lhs, v);
+}
 
 // segtree
 namespace detail {
