@@ -41,3 +41,5 @@ ac-library-*.tar.gz
 .vscode/
 best.txt
 tmp/
+sample/out.txt
+sample/debug.txt
