@@ -160,7 +160,6 @@ std::vector<int> greedy(int D, std::array<int, N> const& decrease,
         max_i = i;
       }
     }
-    debug::println(max_i + 1, max);
     results[d] = max_i;
     last[max_i] = d + 1;
   }
@@ -214,6 +213,66 @@ std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
   return std::ranges::min_element(candidate, compare)->results;
 }
 
+struct get_score_t {
+  int D;
+  std::array<int, N> const& decrease;
+  boost::multi_array<int, 2> const& scores;
+  int operator()(std::vector<int> const& results) const {
+    int score = 1'000'000;
+    std::array<int, N> last{};
+    for (auto d : common::irange(D)) {
+      auto i = results[d];
+      auto diff = d + 1 - last[i];
+      score += scores[d][i];
+      score -= diff * (diff - 1) * decrease[i] / 2;
+      last[i] = d + 1;
+    }
+    for (auto i : common::irange(N)) {
+      auto diff = D - last[i];
+      score -= diff * (diff + 1) * decrease[i] / 2;
+    }
+    return score;
+  }
+};
+
+std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
+                               boost::multi_array<int, 2> const& scores) {
+  get_score_t get_score{D, decrease, scores};
+  auto results = greedy(D, decrease, scores);
+  auto score = get_score(results);
+  std::mt19937 engine{};
+  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
+  std::bernoulli_distribution select;
+  auto start = sch::system_clock::now();
+  auto now = sch::system_clock::now();
+  do {
+    auto i = base(engine);
+    if (select(engine)) {
+      std::uniform_int_distribution<> dist{std::max(0, i - 16),
+                                           std::min(D - 1, i + 16)};
+      auto j = dist(engine);
+      std::swap(results[i], results[j]);
+      auto s = get_score(results);
+      if (s < score) {
+        std::swap(results[i], results[j]);
+      } else {
+        score = s;
+      }
+    } else {
+      auto from = results[i];
+      results[i] = index(engine);
+      auto s = get_score(results);
+      if (s < score) {
+        results[i] = from;
+      } else {
+        score = s;
+      }
+    }
+    now = sch::system_clock::now();
+  } while (now - start < sch::milliseconds(1900));
+  return results;
+}
+
 void Main() {
   int D;
   std::cin >> D;
@@ -227,7 +286,7 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  auto results = beam_search(D, decrease, scores, 1000);
+  auto results = hill_climbing(D, decrease, scores);
   for (auto d : results) {
     std::cout << d + 1 << std::endl;
   }
