@@ -104,7 +104,24 @@ using p_queue = std::priority_queue<T, std::vector<T>, std::greater<>>;
 
 namespace sch = std::chrono;
 
-void Main() {}
+void Main() {
+  const int N = 26;
+  int D;
+  std::cin >> D;
+  std::array<int, N> decrease{};
+  for (auto& d : decrease) {
+    std::cin >> d;
+  }
+  boost::multi_array<int, 2> scores(boost::extents[D][N]);
+  for (int i : common::irange(D)) {
+    for (int j : common::irange(N)) {
+      std::cin >> scores[i][j];
+    }
+  }
+  for (auto i : common::irange(D)) {
+    std::cout << 1 << std::endl;
+  }
+}
 
 int main() {
   std::cin.tie(nullptr);
