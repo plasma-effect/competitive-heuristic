@@ -139,20 +139,10 @@ public:
 
 namespace sch = std::chrono;
 
-void Main() {
-  const int N = 26;
-  int D;
-  std::cin >> D;
-  std::array<int, N> decrease{};
-  for (auto& d : decrease) {
-    std::cin >> d;
-  }
-  boost::multi_array<int, 2> scores(boost::extents[D][N]);
-  for (int i : common::irange(D)) {
-    for (int j : common::irange(N)) {
-      std::cin >> scores[i][j];
-    }
-  }
+const int N = 26;
+
+std::vector<int> greedy(int D, std::array<int, N> const& decrease,
+                        boost::multi_array<int, 2> const& scores) {
   std::vector<int> results(D);
   std::array<int, N> last{};
   for (auto d : common::irange(D)) {
@@ -174,6 +164,58 @@ void Main() {
     results[d] = max_i;
     last[max_i] = d + 1;
   }
+  return results;
+}
+
+std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
+                             boost::multi_array<int, 2> const& scores, int BS) {
+  struct data_t {
+    std::array<int, N> last;
+    std::vector<int> results;
+    int score;
+  };
+  auto compare = [](const data_t& lhs, const data_t& rhs) {
+    return lhs.score > rhs.score;
+  };
+  std::vector<data_t> candidate;
+  candidate.push_back(data_t{{}, {}, 0});
+  for (auto d : common::irange(D)) {
+    std::vector<data_t> next;
+    for (auto& data : candidate) {
+      for (auto i : common::irange(N)) {
+        int score = data.score + scores[d][i];
+        for (auto j : common::irange(N)) {
+          if (i != j) {
+            score -= decrease[j] * (d + 1 - data.last[j]);
+          }
+        }
+        next.push_back(data);
+        next.back().last[i] = d + 1;
+        next.back().results.push_back(i);
+        next.back().score = score;
+      }
+    }
+    std::ranges::nth_element(next, next.begin() + BS, compare);
+    next.resize(std::min<int>(BS, next.size()));
+    std::swap(candidate, next);
+  }
+  return std::ranges::min_element(candidate, compare)->results;
+}
+
+void Main() {
+  int D;
+  std::cin >> D;
+  std::array<int, N> decrease{};
+  for (auto& d : decrease) {
+    std::cin >> d;
+  }
+  boost::multi_array<int, 2> scores(boost::extents[D][N]);
+  for (int i : common::irange(D)) {
+    for (int j : common::irange(N)) {
+      std::cin >> scores[i][j];
+    }
+  }
+  auto results = beam_search(D, decrease, scores, 500);
   for (auto d : results) {
     std::cout << d + 1 << std::endl;
   }
