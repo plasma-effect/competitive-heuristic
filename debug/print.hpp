@@ -1,80 +1,124 @@
 #pragma once
-#include <iostream>
-#include <map>
-#include <tuple>
-#include <vector>
+#include <atcoder/all>
+#include <bits/stdc++.h>
+#include <boost/range/irange.hpp>
 
-namespace debug::detail {
-template <typename T> void print(std::optional<T> const& v);
-template <typename T> void print(std::vector<T> const& vec);
-template <typename T, typename U> void print(std::map<T, U> const& map);
-template <std::size_t S, std::size_t I, typename T>
-void tuple_print(T const& v);
+namespace local_print {
+template <typename T>
+concept output_able = requires(T a) { std::declval<std::ostream&>() << a; };
 
-template <typename T> auto print(T&& val) -> decltype(std::cerr << val) {
-  return std::cerr << val;
+// declare
+template <std::ranges::input_range T>
+void print(std::ostream& ost, T const& ar);
+template <std::integral Int>
+void print(std::ostream& ost, boost::integer_range<Int> const& rng);
+template <typename T, std::size_t N>
+void print(std::ostream& ost, T const (&ar)[N]);
+template <typename T>
+void print(std::ostream& ost, std::optional<T> const& opt);
+template <typename T0, typename T1>
+void print(std::ostream& ost, std::pair<T0, T1> const& p);
+template <typename... Ts>
+void print(std::ostream& ost, std::tuple<Ts...> const& t);
+template <std::size_t Size, std::size_t Index, typename Tuple>
+void tuple_print(std::ostream& ost, Tuple const& t);
+template <int Mod>
+void print(std::ostream& ost, atcoder::static_modint<Mod> const& v);
+
+// define
+template <output_able T> void print(std::ostream& ost, T const& v) { ost << v; }
+template <std::size_t N> void print(std::ostream& ost, const char (&str)[N]) {
+  ost << str;
+}
+void print(std::ostream& ost, std::string const& str) { ost << str; }
+template <std::ranges::input_range T>
+void print(std::ostream& ost, T const& ar) {
+  auto ite = std::ranges::begin(ar);
+  auto end = std::ranges::end(ar);
+  if (ite == end) {
+    ost << "{}";
+  } else {
+    ost << "{";
+    print(ost, *ite);
+    for (++ite; ite != end; ++ite) {
+      ost << ", ";
+      print(ost, *ite);
+    }
+    ost << "}";
+  }
+}
+template <std::integral Int>
+void print(std::ostream& ost, boost::integer_range<Int> const& rng) {
+  auto ite = std::ranges::begin(rng);
+  auto end = std::ranges::end(rng);
+  if (ite == end) {
+    ost << "{}";
+  } else {
+    ost << "{";
+    print(ost, *ite);
+    for (++ite; ite != end; ++ite) {
+      ost << ", ";
+      print(ost, *ite);
+    }
+    ost << "}";
+  }
+}
+template <typename T, std::size_t N>
+void print(std::ostream& ost, T const (&ar)[N]) {
+  ost << "{";
+  print(ost, ar[0]);
+  for (auto i : boost::irange<std::size_t>(1, N)) {
+    ost << ", ";
+    print(ost, ar[i]);
+  }
+  ost << "}";
 }
 template <typename T>
-void print(T const& v,
-           std::enable_if_t<std::tuple_size<T>::value != 0>* = nullptr) {
-  std::cerr << "(";
-  tuple_print<std::tuple_size_v<T>, 0>(v);
-  std::cerr << ")";
-}
-template <typename T> void print(std::vector<T> const& vec) {
-  if (vec.size() == 0) {
-    std::cerr << "[]";
+void print(std::ostream& ost, std::optional<T> const& opt) {
+  if (opt) {
+    print(ost, *opt);
   } else {
-    std::cerr << "[";
-    print(vec[0]);
-    for (auto i : boost::irange<std::size_t>(1, vec.size())) {
-      std::cerr << ", ";
-      print(vec[i]);
-    }
-    std::cerr << "]";
+    ost << "<none>";
   }
 }
-template <typename T, typename U> void print(std::map<T, U> const& map) {
-  if (map.size() == 0) {
-    std::cerr << "{}";
-  } else {
-    std::cerr << "{";
-    auto it = map.begin();
-    print(*it);
-    while (++it != map.end()) {
-      std::cerr << ", ";
-      print(*it);
-    }
-    std::cerr << "}";
+template <typename T0, typename T1>
+void print(std::ostream& ost, std::pair<T0, T1> const& p) {
+  ost << "(";
+  print(ost, p.first);
+  ost << ", ";
+  print(ost, p.second);
+  ost << ")";
+}
+template <typename... Ts>
+void print(std::ostream& ost, std::tuple<Ts...> const& t) {
+  ost << "(";
+  print(ost, std::get<0>(t));
+  tuple_print<sizeof...(Ts), 1>(ost, t);
+  ost << ")";
+}
+template <std::size_t Size, std::size_t Index, typename Tuple>
+void tuple_print(std::ostream& ost, Tuple const& t) {
+  ost << ", ";
+  print(ost, std::get<Index>(t));
+  if constexpr (Index + 1 != Size) {
+    tuple_print<Size, Index + 1>(ost, t);
   }
 }
-
-template <typename T> void print(std::optional<T> const& v) {
-  if (v) {
-    print(*v);
-  } else {
-    std::cerr << "<none>";
-  }
+template <int Mod>
+void print(std::ostream& ost, atcoder::static_modint<Mod> const& v) {
+  ost << v.val();
 }
-template <std::size_t S, std::size_t I, typename T>
-void tuple_print(T const& v) {
-  print(std::get<I>(v));
-  if constexpr (I + 1 != S) {
-    std::cerr << ", ";
-    tuple_print<S, I + 1>(v);
-  }
-}
-} // namespace debug::detail
+} // namespace local_print
 
 namespace debug {
 void println() { std::cerr << std::endl; }
 template <typename T> void println(T const& val) {
-  detail::print(val);
+  local_print::print(std::cerr, val);
   std::cerr << std::endl;
 }
 template <typename T, typename... Ts>
 void println(T const& val, Ts const&... vals) {
-  detail::print(val);
+  local_print::print(std::cerr, val);
   std::cerr << " ";
   println(vals...);
 }
