@@ -168,7 +168,8 @@ std::vector<int> greedy(int D, std::array<int, N> const& decrease,
 }
 
 std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
-                             boost::multi_array<int, 2> const& scores, int BS) {
+                             boost::multi_array<int, 2> const& scores,
+                             std::size_t BS) {
   struct data_t {
     std::array<int, N> last;
     std::vector<int> results;
@@ -189,14 +190,25 @@ std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
             score -= decrease[j] * (d + 1 - data.last[j]);
           }
         }
-        next.push_back(data);
-        next.back().last[i] = d + 1;
-        next.back().results.push_back(i);
-        next.back().score = score;
+        if (next.size() == BS) {
+          std::ranges::pop_heap(next, compare);
+          if (next.back().score < score) {
+            next.back().last = data.last;
+            next.back().last[i] = d + 1;
+            next.back().results = data.results;
+            next.back().results.push_back(i);
+            next.back().score = score;
+          }
+          std::ranges::push_heap(next, compare);
+        } else {
+          next.push_back(data);
+          next.back().last[i] = d + 1;
+          next.back().results.push_back(i);
+          next.back().score = score;
+          std::ranges::push_heap(next, compare);
+        }
       }
     }
-    std::ranges::nth_element(next, next.begin() + BS, compare);
-    next.resize(std::min<int>(BS, next.size()));
     std::swap(candidate, next);
   }
   return std::ranges::min_element(candidate, compare)->results;
@@ -215,7 +227,7 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  auto results = beam_search(D, decrease, scores, 500);
+  auto results = beam_search(D, decrease, scores, 1000);
   for (auto d : results) {
     std::cout << d + 1 << std::endl;
   }
