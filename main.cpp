@@ -153,8 +153,29 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  for (auto i : common::irange(D)) {
-    std::cout << 1 << std::endl;
+  std::vector<int> results(D);
+  std::array<int, N> last{};
+  for (auto d : common::irange(D)) {
+    int max = common::min_v<int>;
+    int max_i = 0;
+    for (auto i : common::irange(N)) {
+      int score = scores[d][i];
+      for (auto j : common::irange(N)) {
+        if (i != j) {
+          score -= decrease[j] * (d + 1 - last[j]);
+        }
+      }
+      if (score > max) {
+        max = score;
+        max_i = i;
+      }
+    }
+    debug::println(max_i + 1, max);
+    results[d] = max_i;
+    last[max_i] = d + 1;
+  }
+  for (auto d : results) {
+    std::cout << d + 1 << std::endl;
   }
 }
 
