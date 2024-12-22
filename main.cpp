@@ -104,11 +104,218 @@ using p_queue = std::priority_queue<T, std::vector<T>, std::greater<>>;
 
 namespace sch = std::chrono;
 
-void Main() {}
+const int N = 26;
+
+std::vector<int> greedy(int D, std::array<int, N> const& decrease,
+                        boost::multi_array<int, 2> const& scores) {
+  std::vector<int> results(D);
+  std::array<int, N> last{};
+  for (auto d : common::irange(D)) {
+    int max = common::min_v<int>;
+    int max_i = 0;
+    for (auto i : common::irange(N)) {
+      int score = scores[d][i];
+      for (auto j : common::irange(N)) {
+        if (i != j) {
+          score -= decrease[j] * (d + 1 - last[j]);
+        }
+      }
+      if (score > max) {
+        max = score;
+        max_i = i;
+      }
+    }
+    results[d] = max_i;
+    last[max_i] = d + 1;
+  }
+  return results;
+}
+
+std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
+                             boost::multi_array<int, 2> const& scores,
+                             std::size_t BS) {
+  struct data_t {
+    std::array<int, N> last;
+    std::vector<int> results;
+    int score;
+  };
+  auto compare = [](const data_t& lhs, const data_t& rhs) {
+    return lhs.score > rhs.score;
+  };
+  std::vector<data_t> candidate;
+  candidate.push_back(data_t{{}, {}, 0});
+  for (auto d : common::irange(D)) {
+    std::vector<data_t> next;
+    for (auto& data : candidate) {
+      for (auto i : common::irange(N)) {
+        int score = data.score + scores[d][i];
+        for (auto j : common::irange(N)) {
+          if (i != j) {
+            score -= decrease[j] * (d + 1 - data.last[j]);
+          }
+        }
+        if (next.size() == BS) {
+          std::ranges::pop_heap(next, compare);
+          if (next.back().score < score) {
+            next.back().last = data.last;
+            next.back().last[i] = d + 1;
+            next.back().results = data.results;
+            next.back().results.push_back(i);
+            next.back().score = score;
+          }
+          std::ranges::push_heap(next, compare);
+        } else {
+          next.push_back(data);
+          next.back().last[i] = d + 1;
+          next.back().results.push_back(i);
+          next.back().score = score;
+          std::ranges::push_heap(next, compare);
+        }
+      }
+    }
+    std::swap(candidate, next);
+  }
+  return std::ranges::min_element(candidate, compare)->results;
+}
+
+struct get_score_t {
+  int D;
+  std::array<int, N> const& decrease;
+  boost::multi_array<int, 2> const& scores;
+  int operator()(std::vector<int> const& results) const {
+    int score = 1'000'000;
+    std::array<int, N> last{};
+    for (auto d : common::irange(D)) {
+      auto i = results[d];
+      auto diff = d + 1 - last[i];
+      score += scores[d][i];
+      score -= diff * (diff - 1) * decrease[i] / 2;
+      last[i] = d + 1;
+    }
+    for (auto i : common::irange(N)) {
+      auto diff = D - last[i];
+      score -= diff * (diff + 1) * decrease[i] / 2;
+    }
+    return score;
+  }
+};
+
+sch::milliseconds get_time() {
+  static const auto start = sch::system_clock::now();
+  return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
+                                               start);
+}
+
+std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
+                               boost::multi_array<int, 2> const& scores) {
+  get_score_t get_score{D, decrease, scores};
+  auto results = greedy(D, decrease, scores);
+  auto score = get_score(results);
+  std::mt19937 engine{};
+  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
+  std::bernoulli_distribution select;
+  auto start = sch::system_clock::now();
+  auto now = sch::system_clock::now();
+  do {
+    auto i = base(engine);
+    if (select(engine)) {
+      std::uniform_int_distribution<> dist{std::max(0, i - 16),
+                                           std::min(D - 1, i + 16)};
+      auto j = dist(engine);
+      std::swap(results[i], results[j]);
+      auto s = get_score(results);
+      if (s < score) {
+        std::swap(results[i], results[j]);
+      } else {
+        score = s;
+      }
+    } else {
+      auto from = results[i];
+      results[i] = index(engine);
+      auto s = get_score(results);
+      if (s < score) {
+        results[i] = from;
+      } else {
+        score = s;
+      }
+    }
+    now = sch::system_clock::now();
+  } while (now - start < sch::milliseconds(1900));
+  return results;
+}
+
+std::vector<int> annealing(int D, std::array<int, N> const& decrease,
+                           boost::multi_array<int, 2> const& scores) {
+  get_score_t get_score{D, decrease, scores};
+  auto results = greedy(D, decrease, scores);
+  auto score = get_score(results);
+  std::mt19937 engine{};
+  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
+  std::bernoulli_distribution select;
+  std::uniform_real_distribution real{0.0, 1.0};
+  auto time = get_time();
+  const double T0 = 2e+3;
+  const double T1 = 6e+2;
+  for (auto c : std::views::iota(1)) {
+    if (c % 100 == 0) {
+      time = get_time();
+      if (time > sch::milliseconds(1900)) {
+        break;
+      }
+    }
+    auto i = base(engine);
+    auto nt = (sch::milliseconds(1900) - time).count() / 1900.0;
+    auto T = std::pow(T0, nt) * std::pow(T1, 1 - nt);
+    if (select(engine)) {
+      std::uniform_int_distribution<> dist{std::max(0, i - 16),
+                                           std::min(D - 1, i + 16)};
+      auto j = dist(engine);
+      std::swap(results[i], results[j]);
+      auto s = get_score(results);
+      auto threshold = std::exp(std::min(0, s - score) / T);
+      if (s < score && threshold < real(engine)) {
+        std::swap(results[i], results[j]);
+      } else {
+        score = s;
+      }
+    } else {
+      auto from = results[i];
+      results[i] = index(engine);
+      auto s = get_score(results);
+      auto threshold = std::exp(std::min(0, s - score) / T);
+      if (s < score && threshold < real(engine)) {
+        results[i] = from;
+      } else {
+        score = s;
+      }
+    }
+  }
+  return results;
+}
+
+void Main() {
+  int D;
+  std::cin >> D;
+  std::array<int, N> decrease{};
+  for (auto& d : decrease) {
+    std::cin >> d;
+  }
+  boost::multi_array<int, 2> scores(boost::extents[D][N]);
+  for (int i : common::irange(D)) {
+    for (int j : common::irange(N)) {
+      std::cin >> scores[i][j];
+    }
+  }
+  auto results = annealing(D, decrease, scores);
+  for (auto d : results) {
+    std::cout << d + 1 << std::endl;
+  }
+}
 
 int main() {
   std::cin.tie(nullptr);
   std::cin.sync_with_stdio(false);
   std::cout << std::fixed << std::setprecision(15);
+  get_time();
   Main();
 }
