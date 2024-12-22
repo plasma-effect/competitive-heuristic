@@ -235,6 +235,12 @@ struct get_score_t {
   }
 };
 
+sch::milliseconds get_time() {
+  static const auto start = sch::system_clock::now();
+  return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
+                                               start);
+}
+
 std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
                                boost::multi_array<int, 2> const& scores) {
   get_score_t get_score{D, decrease, scores};
@@ -273,6 +279,55 @@ std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
   return results;
 }
 
+std::vector<int> annealing(int D, std::array<int, N> const& decrease,
+                           boost::multi_array<int, 2> const& scores) {
+  get_score_t get_score{D, decrease, scores};
+  auto results = greedy(D, decrease, scores);
+  auto score = get_score(results);
+  std::mt19937 engine{};
+  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
+  std::bernoulli_distribution select;
+  std::uniform_real_distribution real{0.0, 1.0};
+  auto time = get_time();
+  const double T0 = 2e+3;
+  const double T1 = 6e+2;
+  for (auto c : std::views::iota(1)) {
+    if (c % 100 == 0) {
+      time = get_time();
+      if (time > sch::milliseconds(1900)) {
+        break;
+      }
+    }
+    auto i = base(engine);
+    auto nt = (sch::milliseconds(1900) - time).count() / 1900.0;
+    auto T = std::pow(T0, nt) * std::pow(T1, 1 - nt);
+    if (select(engine)) {
+      std::uniform_int_distribution<> dist{std::max(0, i - 16),
+                                           std::min(D - 1, i + 16)};
+      auto j = dist(engine);
+      std::swap(results[i], results[j]);
+      auto s = get_score(results);
+      auto threshold = std::exp(std::min(0, s - score) / T);
+      if (s < score && threshold < real(engine)) {
+        std::swap(results[i], results[j]);
+      } else {
+        score = s;
+      }
+    } else {
+      auto from = results[i];
+      results[i] = index(engine);
+      auto s = get_score(results);
+      auto threshold = std::exp(std::min(0, s - score) / T);
+      if (s < score && threshold < real(engine)) {
+        results[i] = from;
+      } else {
+        score = s;
+      }
+    }
+  }
+  return results;
+}
+
 void Main() {
   int D;
   std::cin >> D;
@@ -286,7 +341,7 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  auto results = hill_climbing(D, decrease, scores);
+  auto results = annealing(D, decrease, scores);
   for (auto d : results) {
     std::cout << d + 1 << std::endl;
   }
@@ -296,5 +351,6 @@ int main() {
   std::cin.tie(nullptr);
   std::cin.sync_with_stdio(false);
   std::cout << std::fixed << std::setprecision(15);
+  get_time();
   Main();
 }
