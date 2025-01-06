@@ -9,6 +9,7 @@ namespace debug {
 template <typename... Ts> void println(Ts const&...) {}
 } // namespace debug
 #endif
+namespace sch = std::chrono;
 
 namespace common {
 // common
@@ -97,12 +98,45 @@ void warshall_floyd(boost::multi_array<T, 2>& data, std::size_t N) {
 }
 
 // for dijkstra
-template <typename T>
-using p_queue = std::priority_queue<T, std::vector<T>, std::greater<>>;
+template <typename T, typename Compare = std::greater<>>
+using p_queue = std::priority_queue<T, std::vector<T>, Compare>;
+
+auto get_time() {
+  static auto start = sch::system_clock::now();
+  return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
+                                               start);
+}
+
+class time_control_t {
+  sch::milliseconds time_limit_;
+  std::size_t update_frequency_;
+  double T0, T1;
+  std::size_t update_count;
+  sch::milliseconds current;
+
+public:
+  time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1, double t0,
+                 double t1)
+      : time_limit_(time_limit), update_frequency_(ufreq), T0(t0), T1(t1),
+        update_count(), current(get_time()) {}
+  operator bool() {
+    if (++update_count == update_frequency_) {
+      update_count = 0;
+      current = get_time();
+    }
+    return current < time_limit_;
+  }
+
+  double annealing_threshold(double diff) {
+    assert(diff < 0);
+    auto nt = current.count() / double(time_limit_.count());
+    auto T = std::pow(T0, 1 - nt) * std::pow(T1, nt);
+
+    return diff / T;
+  }
+};
 
 } // namespace common
-
-namespace sch = std::chrono;
 
 void Main() {}
 
