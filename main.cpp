@@ -102,7 +102,7 @@ template <typename T, typename Compare = std::greater<>>
 using p_queue = std::priority_queue<T, std::vector<T>, Compare>;
 
 auto get_time() {
-  static auto start = sch::system_clock::now();
+  static const auto start = sch::system_clock::now();
   return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
                                                start);
 }
@@ -128,7 +128,6 @@ public:
   }
 
   double annealing_threshold(double diff) {
-    assert(diff < 0);
     auto nt = current.count() / double(time_limit_.count());
     auto T = std::pow(T0, 1 - nt) * std::pow(T1, nt);
 
