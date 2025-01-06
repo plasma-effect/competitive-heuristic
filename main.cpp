@@ -115,8 +115,8 @@ class time_control_t {
   sch::milliseconds current;
 
 public:
-  time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1, double t0,
-                 double t1)
+  time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1,
+                 double t0 = 2000, double t1 = 600)
       : time_limit_(time_limit), update_frequency_(ufreq), T0(t0), T1(t1),
         update_count(), current(get_time()) {}
   operator bool() {
