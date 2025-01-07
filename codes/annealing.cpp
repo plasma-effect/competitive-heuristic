@@ -103,29 +103,29 @@ auto get_time() {
 class time_control_t {
   sch::milliseconds time_limit_;
   std::size_t update_frequency_;
-  double T0, T1;
+  double T1, dT, T;
   std::size_t update_count;
   sch::milliseconds current;
 
 public:
   time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1,
                  double t0 = 2000, double t1 = 600)
-      : time_limit_(time_limit), update_frequency_(ufreq), T0(t0), T1(t1),
-        update_count(), current(get_time()) {}
+      : time_limit_(time_limit), update_frequency_(ufreq), T1(t1), dT(t0 / t1),
+        T{}, update_count(), current(get_time()) {
+    auto nt = current.count() / double(time_limit_.count());
+    T = T1 * std::pow(dT, 1 - nt);
+  }
   operator bool() {
     if (++update_count == update_frequency_) {
       update_count = 0;
       current = get_time();
+      auto nt = current.count() / double(time_limit_.count());
+      T = T1 * std::pow(dT, 1 - nt);
     }
     return current < time_limit_;
   }
 
-  double annealing_threshold(double diff) {
-    auto nt = current.count() / double(time_limit_.count());
-    auto T = std::pow(T0, 1 - nt) * std::pow(T1, nt);
-
-    return diff / T;
-  }
+  double annealing_threshold(double diff) { return std::exp(diff / T); }
 };
 
 } // namespace common
