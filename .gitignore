@@ -37,8 +37,11 @@ boost*.tar.gz
 ac-library*/
 ac-library-*.tar.gz
 
-# Others
-.vscode/
+# For Local Execution
+tools/
+samples/
+tester.zip
+vis.html
 best.txt
 tmp/
 sample/out.txt
