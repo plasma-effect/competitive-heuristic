@@ -2,13 +2,6 @@
 #include <atcoder/all>
 #include <boost/multi_array.hpp>
 #include <boost/range/irange.hpp>
-#ifdef LOCAL_DEBUG
-#include "debug/print.hpp"
-#else
-namespace debug {
-template <typename... Ts> void println(Ts const&...) {}
-} // namespace debug
-#endif
 namespace sch = std::chrono;
 
 namespace common {
@@ -110,29 +103,29 @@ auto get_time() {
 class time_control_t {
   sch::milliseconds time_limit_;
   std::size_t update_frequency_;
-  double T1, dT, T;
+  double T0, T1;
   std::size_t update_count;
   sch::milliseconds current;
 
 public:
   time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1,
                  double t0 = 2000, double t1 = 600)
-      : time_limit_(time_limit), update_frequency_(ufreq), T1(t1), dT(t0 / t1),
-        T{}, update_count(), current(get_time()) {
-    auto nt = current.count() / double(time_limit_.count());
-    T = T1 * std::pow(dT, 1 - nt);
-  }
+      : time_limit_(time_limit), update_frequency_(ufreq), T0(t0), T1(t1),
+        update_count(), current(get_time()) {}
   operator bool() {
     if (++update_count == update_frequency_) {
       update_count = 0;
       current = get_time();
-      auto nt = current.count() / double(time_limit_.count());
-      T = T1 * std::pow(dT, 1 - nt);
     }
     return current < time_limit_;
   }
 
-  double annealing_threshold(double diff) { return std::exp(diff / T); }
+  double annealing_threshold(double diff) {
+    auto nt = current.count() / double(time_limit_.count());
+    auto T = std::pow(T0, 1 - nt) * std::pow(T1, nt);
+
+    return diff / T;
+  }
 };
 
 } // namespace common
@@ -162,53 +155,6 @@ std::vector<int> greedy(int D, std::array<int, N> const& decrease,
     last[max_i] = d + 1;
   }
   return results;
-}
-
-std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
-                             boost::multi_array<int, 2> const& scores,
-                             std::size_t BS) {
-  struct data_t {
-    std::array<int, N> last;
-    std::vector<int> results;
-    int score;
-  };
-  auto compare = [](const data_t& lhs, const data_t& rhs) {
-    return lhs.score > rhs.score;
-  };
-  std::vector<data_t> candidate;
-  candidate.push_back(data_t{{}, {}, 0});
-  for (auto d : common::irange(D)) {
-    std::vector<data_t> next;
-    for (auto& data : candidate) {
-      for (auto i : common::irange(N)) {
-        int score = data.score + scores[d][i];
-        for (auto j : common::irange(N)) {
-          if (i != j) {
-            score -= decrease[j] * (d + 1 - data.last[j]);
-          }
-        }
-        if (next.size() == BS) {
-          std::ranges::pop_heap(next, compare);
-          if (next.back().score < score) {
-            next.back().last = data.last;
-            next.back().last[i] = d + 1;
-            next.back().results = data.results;
-            next.back().results.push_back(i);
-            next.back().score = score;
-          }
-          std::ranges::push_heap(next, compare);
-        } else {
-          next.push_back(data);
-          next.back().last[i] = d + 1;
-          next.back().results.push_back(i);
-          next.back().score = score;
-          std::ranges::push_heap(next, compare);
-        }
-      }
-    }
-    std::swap(candidate, next);
-  }
-  return std::ranges::min_element(candidate, compare)->results;
 }
 
 struct get_score_t {
@@ -269,45 +215,6 @@ std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
   return results;
 }
 
-std::vector<int> annealing(int D, std::array<int, N> const& decrease,
-                           boost::multi_array<int, 2> const& scores) {
-  get_score_t get_score{D, decrease, scores};
-  auto results = greedy(D, decrease, scores);
-  auto score = get_score(results);
-  std::mt19937 engine{};
-  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
-  std::bernoulli_distribution select;
-  std::uniform_real_distribution real{0.0, 1.0};
-  common::time_control_t time_control(sch::milliseconds(1900), 100);
-  while (time_control) {
-    auto i = base(engine);
-    if (select(engine)) {
-      std::uniform_int_distribution<> dist{std::max(0, i - 16),
-                                           std::min(D - 1, i + 16)};
-      auto j = dist(engine);
-      std::swap(results[i], results[j]);
-      auto s = get_score(results);
-      auto threshold = time_control.annealing_threshold(s - score);
-      if (s < score && threshold < real(engine)) {
-        std::swap(results[i], results[j]);
-      } else {
-        score = s;
-      }
-    } else {
-      auto from = results[i];
-      results[i] = index(engine);
-      auto s = get_score(results);
-      auto threshold = time_control.annealing_threshold(s - score);
-      if (s < score && threshold < real(engine)) {
-        results[i] = from;
-      } else {
-        score = s;
-      }
-    }
-  }
-  return results;
-}
-
 void Main() {
   int D;
   std::cin >> D;
@@ -321,7 +228,7 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  auto results = annealing(D, decrease, scores);
+  auto results = hill_climbing(D, decrease, scores);
   for (auto d : results) {
     std::cout << d + 1 << std::endl;
   }

@@ -2,13 +2,6 @@
 #include <atcoder/all>
 #include <boost/multi_array.hpp>
 #include <boost/range/irange.hpp>
-#ifdef LOCAL_DEBUG
-#include "debug/print.hpp"
-#else
-namespace debug {
-template <typename... Ts> void println(Ts const&...) {}
-} // namespace debug
-#endif
 namespace sch = std::chrono;
 
 namespace common {
@@ -164,53 +157,6 @@ std::vector<int> greedy(int D, std::array<int, N> const& decrease,
   return results;
 }
 
-std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
-                             boost::multi_array<int, 2> const& scores,
-                             std::size_t BS) {
-  struct data_t {
-    std::array<int, N> last;
-    std::vector<int> results;
-    int score;
-  };
-  auto compare = [](const data_t& lhs, const data_t& rhs) {
-    return lhs.score > rhs.score;
-  };
-  std::vector<data_t> candidate;
-  candidate.push_back(data_t{{}, {}, 0});
-  for (auto d : common::irange(D)) {
-    std::vector<data_t> next;
-    for (auto& data : candidate) {
-      for (auto i : common::irange(N)) {
-        int score = data.score + scores[d][i];
-        for (auto j : common::irange(N)) {
-          if (i != j) {
-            score -= decrease[j] * (d + 1 - data.last[j]);
-          }
-        }
-        if (next.size() == BS) {
-          std::ranges::pop_heap(next, compare);
-          if (next.back().score < score) {
-            next.back().last = data.last;
-            next.back().last[i] = d + 1;
-            next.back().results = data.results;
-            next.back().results.push_back(i);
-            next.back().score = score;
-          }
-          std::ranges::push_heap(next, compare);
-        } else {
-          next.push_back(data);
-          next.back().last[i] = d + 1;
-          next.back().results.push_back(i);
-          next.back().score = score;
-          std::ranges::push_heap(next, compare);
-        }
-      }
-    }
-    std::swap(candidate, next);
-  }
-  return std::ranges::min_element(candidate, compare)->results;
-}
-
 struct get_score_t {
   int D;
   std::array<int, N> const& decrease;
@@ -232,42 +178,6 @@ struct get_score_t {
     return score;
   }
 };
-
-std::vector<int> hill_climbing(int D, std::array<int, N> const& decrease,
-                               boost::multi_array<int, 2> const& scores) {
-  get_score_t get_score{D, decrease, scores};
-  auto results = greedy(D, decrease, scores);
-  auto score = get_score(results);
-  std::mt19937 engine{};
-  std::uniform_int_distribution<> base{0, D - 1}, index{0, N - 1};
-  std::bernoulli_distribution select;
-  common::time_control_t time_control(sch::milliseconds(1900));
-  do {
-    auto i = base(engine);
-    if (select(engine)) {
-      std::uniform_int_distribution<> dist{std::max(0, i - 16),
-                                           std::min(D - 1, i + 16)};
-      auto j = dist(engine);
-      std::swap(results[i], results[j]);
-      auto s = get_score(results);
-      if (s < score) {
-        std::swap(results[i], results[j]);
-      } else {
-        score = s;
-      }
-    } else {
-      auto from = results[i];
-      results[i] = index(engine);
-      auto s = get_score(results);
-      if (s < score) {
-        results[i] = from;
-      } else {
-        score = s;
-      }
-    }
-  } while (time_control);
-  return results;
-}
 
 std::vector<int> annealing(int D, std::array<int, N> const& decrease,
                            boost::multi_array<int, 2> const& scores) {

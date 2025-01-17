@@ -1,5 +1,3 @@
-# competitive-heuristic
+# Introduction to Heuristics Contest
 
-自分用のヒューリスティックコンテスト用テンプレートです。
-
-[atcoder/introduction](https://github.com/plasma-effect/competitive-heuristic/tree/atcoder/introduction) に使用例を提示しています。
+[Introduction to Heuristics Contest](https://atcoder.jp/contests/intro-heuristics)用のソースコード及び使用例です。

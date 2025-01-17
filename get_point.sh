@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-TARGET_LESSER=1
+TARGET_LESSER=0
 make
 mkdir -p tmp
 SUM=0

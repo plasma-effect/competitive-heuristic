@@ -2,13 +2,7 @@
 #include <atcoder/all>
 #include <boost/multi_array.hpp>
 #include <boost/range/irange.hpp>
-#ifdef LOCAL_DEBUG
-#include "debug/print.hpp"
-#else
-namespace debug {
-template <typename... Ts> void println(Ts const&...) {}
-} // namespace debug
-#endif
+namespace sch = std::chrono;
 
 namespace common {
 // common
@@ -97,15 +91,95 @@ void warshall_floyd(boost::multi_array<T, 2>& data, std::size_t N) {
 }
 
 // for dijkstra
-template <typename T>
-using p_queue = std::priority_queue<T, std::vector<T>, std::greater<>>;
+template <typename T, typename Compare = std::greater<>>
+using p_queue = std::priority_queue<T, std::vector<T>, Compare>;
+
+auto get_time() {
+  static auto start = sch::system_clock::now();
+  return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
+                                               start);
+}
+
+class time_control_t {
+  sch::milliseconds time_limit_;
+  std::size_t update_frequency_;
+  double T0, T1;
+  std::size_t update_count;
+  sch::milliseconds current;
+
+public:
+  time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1,
+                 double t0 = 2000, double t1 = 600)
+      : time_limit_(time_limit), update_frequency_(ufreq), T0(t0), T1(t1),
+        update_count(), current(get_time()) {}
+  operator bool() {
+    if (++update_count == update_frequency_) {
+      update_count = 0;
+      current = get_time();
+    }
+    return current < time_limit_;
+  }
+
+  double annealing_threshold(double diff) {
+    auto nt = current.count() / double(time_limit_.count());
+    auto T = std::pow(T0, 1 - nt) * std::pow(T1, nt);
+
+    return diff / T;
+  }
+};
 
 } // namespace common
 
-namespace sch = std::chrono;
+const int N = 26;
+
+std::vector<int> beam_search(int D, std::array<int, N> const& decrease,
+                             boost::multi_array<int, 2> const& scores,
+                             std::size_t BS) {
+  struct data_t {
+    std::array<int, N> last;
+    std::vector<int> results;
+    int score;
+  };
+  auto compare = [](const data_t& lhs, const data_t& rhs) {
+    return lhs.score > rhs.score;
+  };
+  std::vector<data_t> candidate;
+  candidate.push_back(data_t{{}, {}, 0});
+  for (auto d : common::irange(D)) {
+    std::vector<data_t> next;
+    for (auto& data : candidate) {
+      for (auto i : common::irange(N)) {
+        int score = data.score + scores[d][i];
+        for (auto j : common::irange(N)) {
+          if (i != j) {
+            score -= decrease[j] * (d + 1 - data.last[j]);
+          }
+        }
+        if (next.size() == BS) {
+          std::ranges::pop_heap(next, compare);
+          if (next.back().score < score) {
+            next.back().last = data.last;
+            next.back().last[i] = d + 1;
+            next.back().results = data.results;
+            next.back().results.push_back(i);
+            next.back().score = score;
+          }
+          std::ranges::push_heap(next, compare);
+        } else {
+          next.push_back(data);
+          next.back().last[i] = d + 1;
+          next.back().results.push_back(i);
+          next.back().score = score;
+          std::ranges::push_heap(next, compare);
+        }
+      }
+    }
+    std::swap(candidate, next);
+  }
+  return std::ranges::min_element(candidate, compare)->results;
+}
 
 void Main() {
-  const int N = 26;
   int D;
   std::cin >> D;
   std::array<int, N> decrease{};
@@ -118,19 +192,10 @@ void Main() {
       std::cin >> scores[i][j];
     }
   }
-  std::array<int, N> last{};
-  int result = 1'000'000;
-  for (int d : common::irange(D)) {
-    int t;
-    std::cin >> t;
-    --t;
-    result += scores[d][t];
-    last[t] = d + 1;
-    for (auto i : common::irange(N)) {
-      result -= decrease[i] * (d + 1 - last[i]);
-    }
+  auto results = beam_search(D, decrease, scores, 1000);
+  for (auto d : results) {
+    std::cout << d + 1 << std::endl;
   }
-  std::cout << std::max(result, 0) << std::endl;
 }
 
 int main() {

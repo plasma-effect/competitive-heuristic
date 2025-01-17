@@ -6,6 +6,18 @@ CXXFLAGS = -std=c++20 -O3 -Iboost/include -Iac-library -DLOCAL_DEBUG -Wall -Wext
 %.o: %.cpp
 	g++ -MMD -MP $< $(CXXFLAGS) -o $@
 
+.PHONY: greedy
+greedy: codes/greedy.o
+
+.PHONY: beam_search
+beam_search: codes/beam_search.o
+
+.PHONY: climbing
+climbing: codes/climbing.o
+
+.PHONY: annealing
+annealing: codes/annealing.o
+
 -include main.d
 
 .PHONY: clean
