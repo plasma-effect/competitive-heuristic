@@ -100,7 +100,10 @@ void warshall_floyd(boost::multi_array<T, 2>& data, std::size_t N) {
 // for dijkstra
 template <typename T, typename Compare = std::greater<>>
 using p_queue = std::priority_queue<T, std::vector<T>, Compare>;
+} // namespace common
 
+// For Heuristic
+namespace heuristic {
 auto get_time() {
   static const auto start = sch::system_clock::now();
   return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
@@ -135,7 +138,7 @@ public:
   double annealing_threshold(double diff) { return std::exp(diff / T); }
 };
 
-} // namespace common
+} // namespace heuristic
 
 void Main() {}
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 TARGET_LESSER=1
-make
+make main.o check.o
 mkdir -p tmp
 SUM=0
 for file in $(ls samples/*.txt); do

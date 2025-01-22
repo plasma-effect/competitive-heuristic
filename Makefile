@@ -1,5 +1,5 @@
 .PHONY: all
-all: main.o check.o
+all: main.o
 
 WARNINGS = -Wall -Wextra -Werror=return-type -Wno-unused-parameter -Wno-unused-variable
 INCLUDES = -Iboost/include -Iac-library
