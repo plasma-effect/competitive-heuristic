@@ -1,7 +1,9 @@
 .PHONY: all
 all: main.o check.o
 
-CXXFLAGS = -std=c++20 -O3 -Iboost/include -Iac-library -DLOCAL_DEBUG -Wall -Wextra -Werror=return-type
+WARNINGS = -Wall -Wextra -Werror=return-type -Wno-unused-parameter -Wno-unused-variable
+INCLUDES = -Iboost/include -Iac-library
+CXXFLAGS = -std=c++20 -O3  -DLOCAL_DEBUG $(INCLUDES) $(WARNINGS)
 
 %.o: %.cpp
 	g++ -MMD -MP $< $(CXXFLAGS) -o $@
