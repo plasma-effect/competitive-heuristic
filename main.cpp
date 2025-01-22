@@ -1,5 +1,6 @@
 #include "bits/stdc++.h"
 #include <atcoder/all>
+#include <boost/container/static_vector.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/range/irange.hpp>
 #ifdef LOCAL_DEBUG
@@ -110,6 +111,23 @@ auto get_time() {
                                                start);
 }
 
+namespace detail {
+std::mt19937& get_common_engine() {
+  static std::mt19937 engine{};
+  return engine;
+}
+} // namespace detail
+template <typename T> auto make_uniform_int_distribution(T min, T max) {
+  auto& engine = detail::get_common_engine();
+  std::uniform_int_distribution<T> dist(min, max);
+  return [&engine, dist]() mutable { return dist(engine); };
+}
+double generate_canonical() {
+  auto& engine = detail::get_common_engine();
+  constexpr auto digits = std::numeric_limits<double>::digits;
+  return std::generate_canonical<double, digits>(engine);
+}
+
 class time_control_t {
   sch::milliseconds time_limit_;
   std::size_t update_frequency_;
@@ -136,6 +154,35 @@ public:
   }
 
   double annealing_threshold(double diff) { return std::exp(diff / T); }
+  bool transition_check(double diff) {
+    if (diff > 0) {
+      return true;
+    } else {
+      return generate_canonical() < annealing_threshold(diff);
+    }
+  }
+};
+
+// For Beam Search
+template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
+class static_priority_container {
+  boost::container::static_vector<T, Capacity> cont;
+  Compare comp;
+
+public:
+  static_priority_container(Compare = {}) : cont{}, comp{} {}
+  void push(T value) {
+    if (cont.size() < Capacity) {
+      cont.push_back(value);
+      std::ranges::push_heap(cont, comp);
+    } else if (comp(value, cont.front())) {
+      std::ranges::pop_heap(cont, comp);
+      std::swap(cont.back(), value);
+      std::ranges::push_heap(cont, comp);
+    }
+  }
+  auto begin() const { return cont.begin(); }
+  auto end() const { return cont.end(); }
 };
 
 } // namespace heuristic
