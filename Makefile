@@ -19,4 +19,4 @@ clean_all: clean
 	rm -rf samples
 	rm -rf tools
 	rm -f *.zip *.tar.gz *.html
-	rm best.txt
+	rm -f best.txt
