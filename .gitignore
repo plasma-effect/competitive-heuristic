@@ -40,9 +40,12 @@ ac-library-*.tar.gz
 # For Local Execution
 tools/
 samples/
+backup/
 tester.zip
 vis.html
 best.txt
+best.cpp
+data.json
 tmp/
 sample/out.txt
 sample/debug.txt

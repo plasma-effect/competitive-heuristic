@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
-make
+make main_measure.o
 mkdir -p tmp
 SUM=0
 for file in $(ls samples/*.txt); do
   echo "start ${file}"
-  timeout 10 cat ${file} | ./main.o > tmp/out.txt 2>/dev/null
+  timeout 10 cat ${file} | ./main_measure.o > tmp/out.txt 2>/dev/null
   NOW=$(./tools/target/release/vis ${file} tmp/out.txt)
   SUM=$((SUM+NOW)) 
 done
