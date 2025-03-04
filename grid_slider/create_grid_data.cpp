@@ -10,7 +10,8 @@ int main() {
   using namespace std::literals;
   std::string line;
   if (!std::getline(std::cin, line)) {
-    return EXIT_FAILURE;
+    std::cout << "const gridData = [];" << std::endl;
+    return EXIT_SUCCESS;
   }
   int H = -1, W = -1;
   for (auto view : std::string_view(line) | std::views::split(","sv)) {
