@@ -16,12 +16,16 @@ main_measure.o: main.cpp
 .PHONY: clean
 clean:
 	rm -f *.o *.d
+	rm -f grid_slider/*.o grid_slider/*.d
 
 .PHONY: clean_all
 clean_all: clean
 	rm -rf samples
 	rm -rf tools
 	rm -rf backup
-	rm -f *.zip *.tar.gz *.html
+	rm -rf tmp
+	rm -f *.zip *.tar.gz
+	rm -f vis.html
 	rm -f best.txt
+	rm -f best.cpp
 	rm -f data.json

@@ -4,9 +4,9 @@
 
 namespace debug {
 template <std::size_t H, std::size_t W> class grid {
-  static inline std::array<std::array<int, H>, W> inside{};
-  static inline std::array<std::array<std::optional<int>, H>, W> data{};
-  static inline std::array<std::array<const char*, H>, W> color{};
+  static inline std::array<std::array<int, W>, H> inside{};
+  static inline std::array<std::array<std::optional<int>, W>, H> data{};
+  static inline std::array<std::array<const char*, W>, H> color{};
   static inline int count = 0;
   static inline std::optional<std::uint_least32_t> current;
 
@@ -40,7 +40,7 @@ public:
                       *current));
     }
     if (count == 0) {
-      std::fstream fst("gridDataBase.csv", std::ios::out | std::ios::app);
+      std::fstream fst("tmp/gridDataBase.csv", std::ios::out | std::ios::app);
       fst << H << "," << W << std::endl;
     }
     ++count;
@@ -49,7 +49,7 @@ public:
   }
   ~grid() {
     current.reset();
-    std::fstream fst("gridDataBase.csv", std::ios::out | std::ios::app);
+    std::fstream fst("tmp/gridDataBase.csv", std::ios::out | std::ios::app);
     for (auto i : boost::irange(H)) {
       const char* delim = "";
       for (auto j : boost::irange(W)) {
