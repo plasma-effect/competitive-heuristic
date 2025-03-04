@@ -1,16 +1,7 @@
+#include "atcoder/all"
 #include "bits/stdc++.h"
-#include <atcoder/all>
-#include <boost/container/static_vector.hpp>
-#include <boost/range/irange.hpp>
-#ifdef LOCAL_DEBUG
-#include "debug/print.hpp"
-#include "grid_slider/grid.hpp"
-#else
-namespace debug {
-template <typename... Ts> void println(Ts const&...) {}
-} // namespace debug
-#endif
-namespace sch = std::chrono;
+#include "boost/container/static_vector.hpp"
+#include "boost/range/irange.hpp"
 
 namespace common {
 template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
@@ -61,10 +52,167 @@ public:
   std::size_t size() const { return dim0 * dim1; }
 };
 
+template <> class dual_array<bool> : public dual_array<std::uint8_t> {
+public:
+  using dual_array<std::uint8_t>::dual_array;
+};
+
 template <typename T, typename F = std::greater<>>
 using priority_queue = std::priority_queue<T, std::vector<T>, F>;
 } // namespace common
 
+namespace heuristic {
+auto get_time() {
+  using namespace std::chrono;
+  thread_local const auto start = system_clock::now();
+  return duration_cast<milliseconds>(system_clock::now() - start);
+}
+
+namespace detail {
+std::mt19937& get_common_engine() {
+  thread_local std::mt19937 engine{};
+  return engine;
+}
+} // namespace detail
+template <typename T> auto make_uniform_int_distribution(T min, T max) {
+  auto& engine = detail::get_common_engine();
+  std::uniform_int_distribution<T> dist(min, max);
+  return [&engine, dist]() mutable { return dist(engine); };
+}
+double generate_canonical() {
+  auto& engine = detail::get_common_engine();
+  constexpr auto digits = std::numeric_limits<double>::digits;
+  return std::generate_canonical<double, digits>(engine);
+}
+template <typename Rng> void shuffle(Rng& rng) {
+  std::ranges::shuffle(rng, detail::get_common_engine());
+}
+template <std::random_access_iterator It> void shuffle(It first, It last) {
+  std::shuffle(first, last, detail::get_common_engine());
+}
+
+class time_control_t {
+  std::chrono::milliseconds time_limit_;
+  std::size_t update_frequency_;
+  double T1, dT, T;
+  std::size_t update_count;
+  std::chrono::milliseconds current;
+
+  void update_temperature() {
+    auto nt = double(current.count()) / double(time_limit_.count());
+    T = T1 * std::pow(dT, 1 - nt);
+  }
+
+public:
+  time_control_t(std::chrono::milliseconds time_limit, std::size_t ufreq = 1,
+                 double t0 = 2000, double t1 = 600)
+      : time_limit_(time_limit), update_frequency_(ufreq), T1(t1), dT(t0 / t1),
+        T{}, update_count(), current(get_time()) {
+    update_temperature();
+  }
+  operator bool() {
+    if (++update_count == update_frequency_) {
+      update_count = 0;
+      current = get_time();
+      update_temperature();
+    }
+    return current < time_limit_;
+  }
+
+  double annealing_threshold(double diff) { return std::exp(diff / T); }
+  bool transition_check(double diff) {
+    if (diff > 0) {
+      return true;
+    } else {
+      return generate_canonical() < annealing_threshold(diff);
+    }
+  }
+};
+
+// For Beam Search
+template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
+class static_priority_container {
+  boost::container::static_vector<T, Capacity> cont;
+  Compare comp;
+
+public:
+  static_priority_container(Compare = {}) : cont{}, comp{} {}
+  void push(T value) {
+    if (cont.size() < Capacity) {
+      cont.push_back(value);
+      std::ranges::push_heap(cont, comp);
+    } else if (comp(value, cont.front())) {
+      std::ranges::pop_heap(cont, comp);
+      std::swap(cont.back(), value);
+      std::ranges::push_heap(cont, comp);
+    }
+  }
+  auto begin() const { return cont.begin(); }
+  auto end() const { return cont.end(); }
+};
+
+// For Grid Graph
+template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
+  using internal_t = std::pair<int, common::dual_array<int>>;
+  using internal_ptr = std::unique_ptr<internal_t>;
+  static inline std::vector<internal_ptr> grids;
+  internal_ptr grid_ptr;
+  std::queue<std::tuple<int, int, T>> queue;
+  bool check_front(bool pop_flag) {
+    auto& [count, flags] = *grid_ptr;
+    while (queue.size()) {
+      auto& [i, j, v] = queue.front();
+      if (std::cmp_less(i, 0) || std::cmp_greater_equal(i, H) ||
+          std::cmp_less(j, 0) || std::cmp_greater_equal(j, W)) {
+        queue.pop();
+      } else if (flags(i, j) == count) {
+        queue.pop();
+      } else {
+        if (pop_flag) {
+          flags(i, j) = count;
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+public:
+  grid_bfs_queue() : grid_ptr(), queue() {
+    if (grids.size()) {
+      grid_ptr = std::move(grids.back());
+      grids.pop_back();
+    } else {
+      grid_ptr = std::make_unique<internal_t>(
+          std::pair(0, common::dual_array<int>(H, W)));
+    }
+    ++grid_ptr->first;
+  }
+  ~grid_bfs_queue() { grids.push_back(std::move(grid_ptr)); }
+  void push(int i, int j, T&& arg) { queue.emplace(i, j, std::move(arg)); }
+  void push(int i, int j, const T& arg) { queue.emplace(i, j, arg); }
+  template <typename... Args> void emplace(int i, int j, Args&&... args) {
+    push(i, j, T(std::forward<Args>(args)...));
+  }
+  std::optional<std::tuple<int, int, T>> pop() {
+    if (check_front(true)) {
+      auto&& ret = std::move(queue.front());
+      queue.pop();
+      return std::make_optional(std::move(ret));
+    } else {
+      return std::nullopt;
+    }
+  }
+};
+
+} // namespace heuristic
+
+namespace atcoder {
+template <int mod>
+std::ostream& operator<<(std::ostream& ost, static_modint<mod> const& val) {
+  return ost << val.val();
+}
+} // namespace atcoder
 namespace print_detail {
 template <typename T>
 concept stdstream_able = requires(T a) { std::declval<std::ostream&>() << a; };
@@ -164,107 +312,48 @@ template <typename... Ts> void println(Ts const&... args) {
   std::cout << "\n";
 }
 } // namespace common
+#ifdef LOCAL_DEBUG
 
-// For Heuristic
-namespace heuristic {
-auto get_time() {
-  static const auto start = sch::system_clock::now();
-  return sch::duration_cast<sch::milliseconds>(sch::system_clock::now() -
-                                               start);
-}
-
+namespace debug {
 namespace detail {
-std::mt19937& get_common_engine() {
-  static std::mt19937 engine{};
-  return engine;
+template <typename T>
+constexpr bool is_std_manip_v =
+    std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
+    std::is_same_v<T, decltype(std::setfill(std::declval<char>()))> ||
+    std::is_same_v<T, decltype(std::setprecision(std::declval<int>()))> ||
+    std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
+    std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
+template <bool> void print(print_detail::print_base_t&) {}
+template <bool put_blank, typename T, typename... Ts>
+void print(print_detail::print_base_t& pb, T const& arg, Ts const&... args) {
+  if constexpr (put_blank) {
+    pb.print(" ");
+  }
+  pb.print(arg);
+  print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
 } // namespace detail
-template <typename T> auto make_uniform_int_distribution(T min, T max) {
-  auto& engine = detail::get_common_engine();
-  std::uniform_int_distribution<T> dist(min, max);
-  return [&engine, dist]() mutable { return dist(engine); };
+inline void println() { std::cerr << std::endl; }
+template <typename... Ts> void println(Ts const&... args) {
+  print_detail::print_base_t pb(std::cerr);
+  pb.set_range_prefix("{");
+  pb.set_range_suffix("}");
+  pb.set_range_delim(", ");
+  pb.set_tuple_prefix("(");
+  pb.set_tuple_suffix(")");
+  pb.set_tuple_delim(", ");
+  detail::print<false>(pb, args...);
+  std::cerr << std::endl;
 }
-double generate_canonical() {
-  auto& engine = detail::get_common_engine();
-  constexpr auto digits = std::numeric_limits<double>::digits;
-  return std::generate_canonical<double, digits>(engine);
-}
-template <typename Rng> void shuffle(Rng& rng) {
-  std::ranges::shuffle(rng, detail::get_common_engine());
-}
-template <std::random_access_iterator It> void shuffle(It first, It last) {
-  std::shuffle(first, last, detail::get_common_engine());
-}
+} // namespace debug
+#include "grid_slider/grid.hpp"
+#else
+namespace debug {
+template <typename... Ts> void println(Ts const&...) {}
+} // namespace debug
+#endif
 
-class time_control_t {
-  sch::milliseconds time_limit_;
-  std::size_t update_frequency_;
-  double T1, dT, T;
-  std::size_t update_count;
-  sch::milliseconds current;
-
-public:
-  time_control_t(sch::milliseconds time_limit, std::size_t ufreq = 1,
-                 double t0 = 2000, double t1 = 600)
-      : time_limit_(time_limit), update_frequency_(ufreq), T1(t1), dT(t0 / t1),
-        T{}, update_count(), current(get_time()) {
-    auto nt = current.count() / double(time_limit_.count());
-    T = T1 * std::pow(dT, 1 - nt);
-  }
-  operator bool() {
-    if (++update_count == update_frequency_) {
-      update_count = 0;
-      current = get_time();
-      auto nt = current.count() / double(time_limit_.count());
-      T = T1 * std::pow(dT, 1 - nt);
-    }
-    return current < time_limit_;
-  }
-
-  double annealing_threshold(double diff) { return std::exp(diff / T); }
-  bool transition_check(double diff) {
-    if (diff > 0) {
-      return true;
-    } else {
-      return generate_canonical() < annealing_threshold(diff);
-    }
-  }
-};
-
-// For Beam Search
-template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
-class static_priority_container {
-  boost::container::static_vector<T, Capacity> cont;
-  Compare comp;
-
-public:
-  static_priority_container(Compare = {}) : cont{}, comp{} {}
-  void push(T value) {
-    if (cont.size() < Capacity) {
-      cont.push_back(value);
-      std::ranges::push_heap(cont, comp);
-    } else if (comp(value, cont.front())) {
-      std::ranges::pop_heap(cont, comp);
-      std::swap(cont.back(), value);
-      std::ranges::push_heap(cont, comp);
-    }
-  }
-  auto begin() const { return cont.begin(); }
-  auto end() const { return cont.end(); }
-};
-
-} // namespace heuristic
-
-void Main() {
-  for (int x : common::irange(3)) {
-    debug::grid<20, 15> test;
-    for (int i : common::irange(x + 2, x + 4)) {
-      for (int j : common::irange(x + 2, x + 4)) {
-        test.set_color(i, j, "#000000");
-      }
-    }
-  }
-}
+void Main() {}
 
 int main() {
   std::cin.tie(nullptr);
