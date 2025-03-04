@@ -6,7 +6,7 @@ INCLUDES = -Iboost/include -Iac-library
 CXXFLAGS = -std=c++20 -O3 $(INCLUDES) $(WARNINGS)
 
 %.o: %.cpp
-	g++ -MMD -MP $< $(CXXFLAGS) -DLOCAL_DEBUG -std=c++23 -o $@
+	g++ -MMD -MP $< $(CXXFLAGS) -DLOCAL_DEBUG -std=c++23 -lstdc++_libbacktrace -o $@
 
 main_measure.o: main.cpp
 	g++ -MMD -MP $< $(CXXFLAGS) -o $@

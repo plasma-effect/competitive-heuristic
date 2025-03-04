@@ -1,0 +1,3 @@
+[submodule "competitive-library"]
+	path = competitive-library
+	url = git@github.com:plasma-effect/competitive-library.git

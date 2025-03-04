@@ -49,3 +49,5 @@ data.json
 tmp/
 sample/out.txt
 sample/debug.txt
+gridData.js
+gridDataBase.csv

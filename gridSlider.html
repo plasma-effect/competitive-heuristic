@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>グリッドビジュアライザー</title>
+  <style>
+    .grid-container {
+      display: grid;
+      gap: 1px;
+      width: fit-content;
+      margin: auto;
+    }
+
+    .grid-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      border: 1px solid black;
+    }
+
+    .controls {
+      text-align: center;
+      margin: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="controls">
+    <input type="range" id="gridSlider" min="0" value="0" step="1">
+  </div>
+  <div id="gridWrapper">
+    <!-- ここにグリッドが追加される -->
+  </div>
+
+  <script src="gridData.js"></script>
+  <script>
+    const gridWrapper = document.getElementById("gridWrapper");
+    const slider = document.getElementById("gridSlider");
+
+    function initializeSlider() {
+      slider.max = gridData.length - 1;
+      createGrid(0);
+    }
+
+    function createGrid(gridIndex) {
+      gridWrapper.innerHTML = "";
+      const gridInfo = gridData[gridIndex];
+      const rows = gridInfo.rows;
+      const cols = gridInfo.cols;
+      const gridContainer = document.createElement("div");
+      gridContainer.className = "grid-container";
+      gridContainer.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
+      gridContainer.style.gridTemplateRows = `repeat(${rows}, 20px)`;
+
+      gridInfo.cells.forEach(cell => {
+        const gridItem = document.createElement("div");
+        gridItem.className = "grid-item";
+        gridItem.style.backgroundColor = cell.color;
+        gridItem.style.width = "20px";
+        gridItem.style.height = "20px";
+        gridItem.textContent = cell.num !== null ? cell.num : "";
+        gridContainer.appendChild(gridItem);
+      });
+
+      gridWrapper.appendChild(gridContainer);
+    }
+
+    slider.addEventListener("input", () => {
+      createGrid(slider.value);
+    });
+
+    window.onload = initializeSlider;
+  </script>
+</body>
+
+</html>
