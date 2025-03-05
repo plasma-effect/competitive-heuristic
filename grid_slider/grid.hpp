@@ -2,13 +2,25 @@
 #include "bits/stdc++.h"
 #include "boost/range/irange.hpp"
 
+namespace internal {
+struct duplicate_checker_t {
+  static inline bool check = false;
+  template <typename... Ts>
+  duplicate_checker_t(std::format_string<Ts...> fmt, Ts&&... args) {
+    if (std::exchange(check, true)) {
+      throw std::logic_error(std::format(fmt, std::forward<Ts>(args)...));
+    }
+  }
+  ~duplicate_checker_t() { check = false; }
+};
+} // namespace internal
 namespace debug {
 template <std::size_t H, std::size_t W> class grid {
   static inline std::array<std::array<int, W>, H> inside{};
   static inline std::array<std::array<std::optional<int>, W>, H> data{};
   static inline std::array<std::array<const char*, W>, H> color{};
   static inline int count = 0;
-  static inline std::optional<std::uint_least32_t> current;
+  internal::duplicate_checker_t checker;
 
   void check_data(std::size_t i, std::size_t j) {
     if (std::exchange(inside[i][j], count) != count) {
@@ -32,23 +44,16 @@ template <std::size_t H, std::size_t W> class grid {
   }
 
 public:
-  grid() {
-    if (current) {
-      throw std::logic_error(
-          std::format("There is another debug::grid that has not been "
-                      "destructed (before define: {}).",
-                      *current));
-    }
+  grid()
+      : checker("There is another debug::grid that has not been "
+                "destructed.") {
     if (count == 0) {
       std::fstream fst("tmp/gridDataBase.csv", std::ios::out | std::ios::app);
       fst << H << "," << W << std::endl;
     }
     ++count;
-    auto const& st = std::stacktrace::current(1, 1);
-    current.emplace(st[0].source_line());
   }
   ~grid() {
-    current.reset();
     std::fstream fst("tmp/gridDataBase.csv", std::ios::out | std::ios::app);
     for (auto i : boost::irange(H)) {
       const char* delim = "";

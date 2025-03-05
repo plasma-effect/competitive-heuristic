@@ -3,7 +3,7 @@ default: main_debug.o main_measure.o
 
 WARNINGS = -Wall -Wextra -Werror=return-type
 INCLUDES = -Iboost/include -Iac-library -Icompetitive-library/include
-CXXFLAGS = -std=c++20 -O3 $(INCLUDES) $(WARNINGS)
+CXXFLAGS = -std=c++20 $(INCLUDES) $(WARNINGS)
 
 %.o: %.cpp
 	g++ -MMD -MP -c $< $(CXXFLAGS) -DLOCAL_DEBUG -std=c++23 -o $@
@@ -12,7 +12,7 @@ main_debug.o: main.o
 	g++ $^ -lstdc++_libbacktrace -o $@
 
 main_measure.o: main.cpp
-	g++ -MMD -MP $< $(CXXFLAGS) -DLOCAL_MEASURE -o $@
+	g++ -MMD -MP $< $(CXXFLAGS) -O3 -DLOCAL_MEASURE -o $@
 
 check_result.o: check.o
 	g++ $^ -o $@

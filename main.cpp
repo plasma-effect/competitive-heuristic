@@ -368,7 +368,10 @@ public:
 } // namespace debug
 #endif
 
-void Main() {}
+void Main() {
+  debug::grid<3, 5> grid0;
+  debug::grid<2, 4> grid1;
+}
 
 int main() {
   std::cin.tie(nullptr);
