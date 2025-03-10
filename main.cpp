@@ -9,92 +9,135 @@
 #include <boost/range/irange.hpp>
 #endif
 
-namespace common {
-template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
-template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
-
-template <typename Integer>
-struct integer_range : boost::integer_range<Integer>, std::ranges::view_base {
-  using boost::integer_range<Integer>::integer_range;
-};
-template <typename Integer> integer_range<Integer> irange(Integer last) {
-  return integer_range<Integer>(Integer(0), last);
-}
-template <typename Integer>
-integer_range<Integer> irange(Integer first, Integer last) {
-  return integer_range<Integer>(first, last);
-}
-
-template <typename T> using pair = std::pair<T, T>;
-
-template <typename T> class dual_array {
-  std::vector<T> inside_;
-  std::size_t dim0, dim1;
+namespace heuristic {
+template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
+class static_priority_container {
+  boost::container::static_vector<T, Capacity> cont;
+  Compare comp;
 
 public:
-  dual_array(std::size_t d0, std::size_t d1)
-      : inside_(d0 * d1), dim0(d0), dim1(d1) {}
-  T& operator()(int i0, int i1) {
-    assert(0 <= i0 && std::cmp_less(i0, dim0));
-    assert(0 <= i1 && std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
+  static_priority_container(Compare = {}) : cont{}, comp{} {}
+  void push(T value) {
+    if (cont.size() < Capacity) {
+      cont.push_back(value);
+      std::ranges::push_heap(cont, comp);
+    } else if (comp(value, cont.front())) {
+      std::ranges::pop_heap(cont, comp);
+      std::swap(cont.back(), value);
+      std::ranges::push_heap(cont, comp);
+    }
   }
-  T const& operator()(int i0, int i1) const {
-    assert(0 <= i0 && std::cmp_less(i0, dim0));
-    assert(0 <= i1 && std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
-  }
-  T& operator()(std::size_t i0, std::size_t i1) {
-    assert(std::cmp_less(i0, dim0));
-    assert(std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
-  }
-  T const& operator()(std::size_t i0, std::size_t i1) const {
-    assert(std::cmp_less(i0, dim0));
-    assert(std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
-  }
-  common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
-  std::size_t size() const { return dim0 * dim1; }
+  auto begin() const { return cont.begin(); }
+  auto end() const { return cont.end(); }
 };
 
-template <> class dual_array<bool> : public dual_array<std::uint8_t> {
+template <typename T, std::size_t H, std::size_t W> class static_dual_array {
+  std::array<std::array<T, W>, H> inside_;
+
 public:
-  using dual_array<std::uint8_t>::dual_array;
+  static_dual_array() : inside_{} {};
+  template <std::integral Int0, std::integral Int1>
+  T& operator()(Int0 i0, Int1 i1) {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, H));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, W));
+    return inside_[i0][i1];
+  }
+  template <std::integral Int0, std::integral Int1>
+  T const& operator()(Int0 i0, Int1 i1) const {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, H));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, W));
+    return inside_[i0][i1];
+  }
+  std::pair<std::size_t, std::size_t> dimensions() const { return {H, W}; }
+  std::size_t size() const { return H * W; }
 };
+} // namespace heuristic
 
-template <typename T, typename F = std::greater<>>
-using priority_queue = std::priority_queue<T, std::vector<T>, F>;
-} // namespace common
+namespace heuristic {
+template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
+  using internal_t = std::pair<int, heuristic::static_dual_array<int, H, W>>;
+  using internal_ptr = std::unique_ptr<internal_t>;
+  static inline std::vector<internal_ptr> grids;
+  internal_ptr grid_ptr;
+  std::queue<std::tuple<int, int, T>> queue;
+  bool check_front(bool pop_flag) {
+    auto& [count, flags] = *grid_ptr;
+    while (queue.size()) {
+      auto& [i, j, v] = queue.front();
+      if (std::cmp_less(i, 0) || std::cmp_greater_equal(i, H) ||
+          std::cmp_less(j, 0) || std::cmp_greater_equal(j, W)) {
+        queue.pop();
+      } else if (flags(i, j) == count) {
+        queue.pop();
+      } else {
+        if (pop_flag) {
+          flags(i, j) = count;
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+public:
+  grid_bfs_queue() : grid_ptr(), queue() {
+    if (grids.size()) {
+      grid_ptr = std::move(grids.back());
+      grids.pop_back();
+    } else {
+      grid_ptr = std::make_unique<internal_t>(
+          std::pair(0, heuristic::static_dual_array<int, H, W>()));
+    }
+    ++grid_ptr->first;
+  }
+  ~grid_bfs_queue() { grids.push_back(std::move(grid_ptr)); }
+  void push(int i, int j, T&& arg) { queue.emplace(i, j, std::move(arg)); }
+  void push(int i, int j, const T& arg) { queue.emplace(i, j, arg); }
+  template <typename... Args> void emplace(int i, int j, Args&&... args) {
+    push(i, j, T(std::forward<Args>(args)...));
+  }
+  std::optional<std::tuple<int, int, T>> pop() {
+    if (check_front(true)) {
+      auto&& ret = std::move(queue.front());
+      queue.pop();
+      return std::make_optional(std::move(ret));
+    } else {
+      return std::nullopt;
+    }
+  }
+};
+} // namespace heuristic
+
+namespace heuristic::internal {
+std::mt19937& get_common_engine() {
+  thread_local std::mt19937 engine{};
+  return engine;
+}
+} // namespace heuristic::internal
+namespace heuristic {
+template <typename T> auto make_uniform_int_distribution(T min, T max) {
+  auto& engine = internal::get_common_engine();
+  std::uniform_int_distribution<T> dist(min, max);
+  return [&engine, dist]() mutable { return dist(engine); };
+}
+double generate_canonical() {
+  auto& engine = internal::get_common_engine();
+  constexpr auto digits = std::numeric_limits<double>::digits;
+  return std::generate_canonical<double, digits>(engine);
+}
+template <typename Rng> void shuffle(Rng& rng) {
+  std::ranges::shuffle(rng, internal::get_common_engine());
+}
+template <std::random_access_iterator It> void shuffle(It first, It last) {
+  std::shuffle(first, last, internal::get_common_engine());
+}
+} // namespace heuristic
 
 namespace heuristic {
 auto get_time() {
   using namespace std::chrono;
   thread_local const auto start = system_clock::now();
   return duration_cast<milliseconds>(system_clock::now() - start);
-}
-
-namespace detail {
-std::mt19937& get_common_engine() {
-  thread_local std::mt19937 engine{};
-  return engine;
-}
-} // namespace detail
-template <typename T> auto make_uniform_int_distribution(T min, T max) {
-  auto& engine = detail::get_common_engine();
-  std::uniform_int_distribution<T> dist(min, max);
-  return [&engine, dist]() mutable { return dist(engine); };
-}
-double generate_canonical() {
-  auto& engine = detail::get_common_engine();
-  constexpr auto digits = std::numeric_limits<double>::digits;
-  return std::generate_canonical<double, digits>(engine);
-}
-template <typename Rng> void shuffle(Rng& rng) {
-  std::ranges::shuffle(rng, detail::get_common_engine());
-}
-template <std::random_access_iterator It> void shuffle(It first, It last) {
-  std::shuffle(first, last, detail::get_common_engine());
 }
 
 class time_control_t {
@@ -134,92 +177,55 @@ public:
     }
   }
 };
-
-// For Beam Search
-template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
-class static_priority_container {
-  boost::container::static_vector<T, Capacity> cont;
-  Compare comp;
-
-public:
-  static_priority_container(Compare = {}) : cont{}, comp{} {}
-  void push(T value) {
-    if (cont.size() < Capacity) {
-      cont.push_back(value);
-      std::ranges::push_heap(cont, comp);
-    } else if (comp(value, cont.front())) {
-      std::ranges::pop_heap(cont, comp);
-      std::swap(cont.back(), value);
-      std::ranges::push_heap(cont, comp);
-    }
-  }
-  auto begin() const { return cont.begin(); }
-  auto end() const { return cont.end(); }
-};
-
-// For Grid Graph
-template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
-  using internal_t = std::pair<int, common::dual_array<int>>;
-  using internal_ptr = std::unique_ptr<internal_t>;
-  static inline std::vector<internal_ptr> grids;
-  internal_ptr grid_ptr;
-  std::queue<std::tuple<int, int, T>> queue;
-  bool check_front(bool pop_flag) {
-    auto& [count, flags] = *grid_ptr;
-    while (queue.size()) {
-      auto& [i, j, v] = queue.front();
-      if (std::cmp_less(i, 0) || std::cmp_greater_equal(i, H) ||
-          std::cmp_less(j, 0) || std::cmp_greater_equal(j, W)) {
-        queue.pop();
-      } else if (flags(i, j) == count) {
-        queue.pop();
-      } else {
-        if (pop_flag) {
-          flags(i, j) = count;
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
-public:
-  grid_bfs_queue() : grid_ptr(), queue() {
-    if (grids.size()) {
-      grid_ptr = std::move(grids.back());
-      grids.pop_back();
-    } else {
-      grid_ptr = std::make_unique<internal_t>(
-          std::pair(0, common::dual_array<int>(H, W)));
-    }
-    ++grid_ptr->first;
-  }
-  ~grid_bfs_queue() { grids.push_back(std::move(grid_ptr)); }
-  void push(int i, int j, T&& arg) { queue.emplace(i, j, std::move(arg)); }
-  void push(int i, int j, const T& arg) { queue.emplace(i, j, arg); }
-  template <typename... Args> void emplace(int i, int j, Args&&... args) {
-    push(i, j, T(std::forward<Args>(args)...));
-  }
-  std::optional<std::tuple<int, int, T>> pop() {
-    if (check_front(true)) {
-      auto&& ret = std::move(queue.front());
-      queue.pop();
-      return std::make_optional(std::move(ret));
-    } else {
-      return std::nullopt;
-    }
-  }
-};
-
 } // namespace heuristic
 
-namespace atcoder {
-template <int mod>
-std::ostream& operator<<(std::ostream& ost, static_modint<mod> const& val) {
-  return ost << val.val();
+namespace common {
+template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
+template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
+
+template <std::integral Int> auto irange(Int first, Int last) {
+  assert(std::cmp_less_equal(first, last));
+  return std::views::iota(first, last);
 }
-} // namespace atcoder
-namespace print_detail {
+template <std::integral Int> auto irange(Int last) {
+  return irange(Int(0), last);
+}
+
+template <typename T> using pair = std::pair<T, T>;
+
+template <typename T> class dual_array {
+  std::vector<T> inside_;
+  std::size_t dim0, dim1;
+
+public:
+  dual_array(std::size_t d0, std::size_t d1)
+      : inside_(d0 * d1), dim0(d0), dim1(d1) {}
+  template <std::integral Int0, std::integral Int1>
+  T& operator()(Int0 i0, Int1 i1) {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
+    return inside_[i0 * dim1 + i1];
+  }
+  template <std::integral Int0, std::integral Int1>
+  T const& operator()(Int0 i0, Int1 i1) const {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
+    return inside_[i0 * dim1 + i1];
+  }
+  common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
+  std::size_t size() const { return dim0 * dim1; }
+};
+
+template <> class dual_array<bool> : public dual_array<std::uint8_t> {
+public:
+  using dual_array<std::uint8_t>::dual_array;
+};
+
+template <typename T, typename F = std::greater<>>
+using priority_queue = std::priority_queue<T, std::vector<T>, F>;
+} // namespace common
+
+namespace common::internal {
 template <typename T>
 concept stdstream_able = requires(T a) { std::declval<std::ostream&>() << a; };
 
@@ -241,6 +247,9 @@ public:
   void print(std::string const& str) { ost << str; }
   void print(std::string_view const& view) { ost << view; }
   void print(const char* str) { ost << str; }
+  template <int mod> void print(atcoder::static_modint<mod> const& val) {
+    ost << val.val();
+  }
   template <stdstream_able T> void print(T const& v) { ost << v; }
   template <std::input_iterator It> void print(It first, It last) {
     ost << rng_dec.prefix;
@@ -252,10 +261,6 @@ public:
       }
     }
     ost << rng_dec.suffix;
-  }
-  template <std::integral Int>
-  void print(common::integer_range<Int> const& rng) {
-    print(rng.begin(), rng.end());
   }
   template <std::ranges::input_range T> void print(T const& rng) {
     print(rng.begin(), rng.end());
@@ -290,10 +295,7 @@ public:
   void set_tuple_suffix(const char* new_suffix) { tpl_dec.suffix = new_suffix; }
   void set_tuple_delim(const char* new_delim) { tpl_dec.delim = new_delim; }
 };
-} // namespace print_detail
 
-namespace common {
-namespace detail {
 template <typename T>
 constexpr bool is_std_manip_v =
     std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
@@ -301,54 +303,52 @@ constexpr bool is_std_manip_v =
     std::is_same_v<T, decltype(std::setprecision(std::declval<int>()))> ||
     std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
     std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
-template <bool> void print(print_detail::print_base_t&) {}
+} // namespace common::internal
+
+namespace common::internal {
+template <bool> void print(print_base_t&) {}
 template <bool put_blank, typename T, typename... Ts>
-void print(print_detail::print_base_t& pb, T const& arg, Ts const&... args) {
+void print(print_base_t& pb, T const& arg, Ts const&... args) {
   if constexpr (put_blank) {
     pb.print(" ");
   }
   pb.print(arg);
   print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
-} // namespace detail
+} // namespace common::internal
+namespace common {
 inline void println() { std::cout << "\n"; }
 template <typename... Ts> void println(Ts const&... args) {
-  print_detail::print_base_t pb(std::cout);
-  detail::print<false>(pb, args...);
+  common::internal::print_base_t pb(std::cout);
+  internal::print<false>(pb, args...);
   std::cout << "\n";
 }
 } // namespace common
 #ifdef LOCAL_DEBUG
 
-namespace debug {
-namespace detail {
-template <typename T>
-constexpr bool is_std_manip_v =
-    std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
-    std::is_same_v<T, decltype(std::setfill(std::declval<char>()))> ||
-    std::is_same_v<T, decltype(std::setprecision(std::declval<int>()))> ||
-    std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
-    std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
-template <bool> void print(print_detail::print_base_t&) {}
+namespace debug::internal {
+template <bool> void print(common::internal::print_base_t&) {}
 template <bool put_blank, typename T, typename... Ts>
-void print(print_detail::print_base_t& pb, T const& arg, Ts const&... args) {
+void print(common::internal::print_base_t& pb, T const& arg,
+           Ts const&... args) {
   if constexpr (put_blank) {
     pb.print(" ");
   }
   pb.print(arg);
-  print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
+  print<!common::internal::is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
-} // namespace detail
+} // namespace debug::internal
+namespace debug {
 inline void println() { std::cerr << std::endl; }
 template <typename... Ts> void println(Ts const&... args) {
-  print_detail::print_base_t pb(std::cerr);
+  common::internal::print_base_t pb(std::cerr);
   pb.set_range_prefix("{");
   pb.set_range_suffix("}");
   pb.set_range_delim(", ");
   pb.set_tuple_prefix("(");
   pb.set_tuple_suffix(")");
   pb.set_tuple_delim(", ");
-  detail::print<false>(pb, args...);
+  internal::print<false>(pb, args...);
   std::cerr << std::endl;
 }
 } // namespace debug
@@ -368,10 +368,7 @@ public:
 } // namespace debug
 #endif
 
-void Main() {
-  debug::grid<3, 5> grid0;
-  debug::grid<2, 4> grid1;
-}
+void Main() {}
 
 int main() {
   std::cin.tie(nullptr);

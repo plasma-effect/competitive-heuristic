@@ -20,7 +20,7 @@ template <std::size_t H, std::size_t W> class grid {
   static inline std::array<std::array<std::optional<int>, W>, H> data{};
   static inline std::array<std::array<const char*, W>, H> color{};
   static inline int count = 0;
-  internal::duplicate_checker_t checker;
+  [[no_unique_address]] internal::duplicate_checker_t checker;
 
   void check_data(std::size_t i, std::size_t j) {
     if (std::exchange(inside[i][j], count) != count) {
