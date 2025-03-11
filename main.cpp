@@ -9,6 +9,161 @@
 #include <boost/range/irange.hpp>
 #endif
 
+namespace common {
+template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
+template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
+
+template <std::integral Int> auto irange(Int first, Int last) {
+  assert(std::cmp_less_equal(first, last));
+  return std::views::iota(first, last);
+}
+template <std::integral Int> auto irange(Int last) {
+  return irange(Int(0), last);
+}
+
+template <typename T> using pair = std::pair<T, T>;
+
+template <typename T> class dual_array {
+  std::vector<T> inside_;
+  std::size_t dim0, dim1;
+
+public:
+  dual_array(std::size_t d0, std::size_t d1)
+      : inside_(d0 * d1), dim0(d0), dim1(d1) {}
+  template <std::integral Int0, std::integral Int1>
+  T& operator()(Int0 i0, Int1 i1) {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
+    return inside_[i0 * dim1 + i1];
+  }
+  template <std::integral Int0, std::integral Int1>
+  T const& operator()(Int0 i0, Int1 i1) const {
+    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
+    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
+    return inside_[i0 * dim1 + i1];
+  }
+  common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
+  std::size_t size() const { return dim0 * dim1; }
+};
+
+template <> class dual_array<bool> : public dual_array<std::uint8_t> {
+public:
+  using dual_array<std::uint8_t>::dual_array;
+};
+
+template <typename T, typename F = std::greater<>>
+using priority_queue = std::priority_queue<T, std::vector<T>, F>;
+} // namespace common
+
+namespace common::internal {
+template <typename T>
+concept stdstream_able = requires(T a) { std::declval<std::ostream&>() << a; };
+
+class print_base_t {
+  std::ios_base::fmtflags base_flags;
+  std::ostream& ost;
+  struct dec_t {
+    const char* prefix = "";
+    const char* suffix = "";
+    const char* delim = " ";
+  };
+  dec_t rng_dec, tpl_dec;
+
+public:
+  print_base_t(std::ostream& os)
+      : base_flags(os.flags()), ost(os), rng_dec{}, tpl_dec{} {}
+  ~print_base_t() { ost.setf(base_flags); }
+
+  print_base_t& operator<<(std::string const& str) {
+    ost << str;
+    return *this;
+  }
+  print_base_t& operator<<(std::string_view const& view) {
+    ost << view;
+    return *this;
+  }
+  print_base_t& operator<<(const char* str) {
+    ost << str;
+    return *this;
+  }
+  template <int mod>
+  print_base_t& operator<<(atcoder::static_modint<mod> const& val) {
+    ost << val.val();
+    return *this;
+  }
+  template <stdstream_able T> print_base_t& operator<<(T const& v) {
+    ost << v;
+    return *this;
+  }
+  template <std::input_iterator It> void print_ite(It first, It last) {
+    ost << rng_dec.prefix;
+    if (first != last) {
+      *this << *first;
+      for (++first; first != last; ++first) {
+        ost << rng_dec.delim;
+        *this << *first;
+      }
+    }
+    ost << rng_dec.suffix;
+  }
+  template <std::ranges::input_range T> print_base_t& operator<<(T const& rng) {
+    print_ite(rng.begin(), rng.end());
+    return *this;
+  }
+  template <typename T, std::size_t N>
+  print_base_t& operator<<(T const (&ar)[N]) {
+    print_ite(std::ranges::begin(ar), std::ranges::end(ar));
+    return *this;
+  }
+  template <std::size_t S, std::size_t I, typename T>
+  void tuple_print(T const& t) {
+    if constexpr (I == 0) {
+      ost << tpl_dec.prefix;
+    } else {
+      ost << tpl_dec.delim;
+    }
+    *this << std::get<I>(t);
+    if constexpr (I + 1 != S) {
+      tuple_print<S, I + 1>(t);
+    } else {
+      ost << tpl_dec.suffix;
+    }
+  }
+  template <typename T0, typename T1>
+  print_base_t& operator<<(std::pair<T0, T1> const& p) {
+    tuple_print<2, 0>(p);
+    return *this;
+  }
+  template <typename... Ts>
+  print_base_t& operator<<(std::tuple<Ts...> const& t) {
+    tuple_print<sizeof...(Ts), 0>(t);
+    return *this;
+  }
+  template <typename T> print_base_t& operator<<(std::optional<T> const& opt) {
+    if (opt) {
+      *this << *opt;
+    } else {
+      ost << "<nullopt>";
+    }
+    return *this;
+  }
+  void set_range_prefix(const char* new_prefix) { rng_dec.prefix = new_prefix; }
+  void set_range_suffix(const char* new_suffix) { rng_dec.suffix = new_suffix; }
+  void set_range_delim(const char* new_delim) { rng_dec.delim = new_delim; }
+  void set_tuple_prefix(const char* new_prefix) { tpl_dec.prefix = new_prefix; }
+  void set_tuple_suffix(const char* new_suffix) { tpl_dec.suffix = new_suffix; }
+  void set_tuple_delim(const char* new_delim) { tpl_dec.delim = new_delim; }
+};
+
+template <typename T>
+constexpr bool is_std_manip_v =
+    std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
+    std::is_same_v<T, decltype(std::setfill(std::declval<char>()))> ||
+    std::is_same_v<T, decltype(std::setprecision(std::declval<int>()))> ||
+    std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
+    std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
+} // namespace common::internal
+
 namespace heuristic {
 template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
 class static_priority_container {
@@ -50,6 +205,10 @@ public:
   }
   std::pair<std::size_t, std::size_t> dimensions() const { return {H, W}; }
   std::size_t size() const { return H * W; }
+  friend common::internal::print_base_t&
+  operator<<(common::internal::print_base_t& pb, static_dual_array const& ar) {
+    return pb << ar.inside_;
+  }
 };
 } // namespace heuristic
 
@@ -179,148 +338,22 @@ public:
 };
 } // namespace heuristic
 
-namespace common {
-template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
-template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
-
-template <std::integral Int> auto irange(Int first, Int last) {
-  assert(std::cmp_less_equal(first, last));
-  return std::views::iota(first, last);
-}
-template <std::integral Int> auto irange(Int last) {
-  return irange(Int(0), last);
-}
-
-template <typename T> using pair = std::pair<T, T>;
-
-template <typename T> class dual_array {
-  std::vector<T> inside_;
-  std::size_t dim0, dim1;
-
-public:
-  dual_array(std::size_t d0, std::size_t d1)
-      : inside_(d0 * d1), dim0(d0), dim1(d1) {}
-  template <std::integral Int0, std::integral Int1>
-  T& operator()(Int0 i0, Int1 i1) {
-    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
-    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
-  }
-  template <std::integral Int0, std::integral Int1>
-  T const& operator()(Int0 i0, Int1 i1) const {
-    assert(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, dim0));
-    assert(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
-    return inside_[i0 * dim1 + i1];
-  }
-  common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
-  std::size_t size() const { return dim0 * dim1; }
-};
-
-template <> class dual_array<bool> : public dual_array<std::uint8_t> {
-public:
-  using dual_array<std::uint8_t>::dual_array;
-};
-
-template <typename T, typename F = std::greater<>>
-using priority_queue = std::priority_queue<T, std::vector<T>, F>;
-} // namespace common
-
-namespace common::internal {
-template <typename T>
-concept stdstream_able = requires(T a) { std::declval<std::ostream&>() << a; };
-
-class print_base_t {
-  std::ios_base::fmtflags base_flags;
-  std::ostream& ost;
-  struct dec_t {
-    const char* prefix = "";
-    const char* suffix = "";
-    const char* delim = " ";
-  };
-  dec_t rng_dec, tpl_dec;
-
-public:
-  print_base_t(std::ostream& os)
-      : base_flags(os.flags()), ost(os), rng_dec{}, tpl_dec{} {}
-  ~print_base_t() { ost.setf(base_flags); }
-
-  void print(std::string const& str) { ost << str; }
-  void print(std::string_view const& view) { ost << view; }
-  void print(const char* str) { ost << str; }
-  template <int mod> void print(atcoder::static_modint<mod> const& val) {
-    ost << val.val();
-  }
-  template <stdstream_able T> void print(T const& v) { ost << v; }
-  template <std::input_iterator It> void print(It first, It last) {
-    ost << rng_dec.prefix;
-    if (first != last) {
-      print(*first);
-      for (++first; first != last; ++first) {
-        ost << rng_dec.delim;
-        print(*first);
-      }
-    }
-    ost << rng_dec.suffix;
-  }
-  template <std::ranges::input_range T> void print(T const& rng) {
-    print(rng.begin(), rng.end());
-  }
-  template <typename T, std::size_t N> void print(T const (&ar)[N]) {
-    print(std::ranges::begin(ar), std::ranges::end(ar));
-  }
-  template <std::size_t S, std::size_t I, typename T>
-  void tuple_print(T const& t) {
-    if constexpr (I == 0) {
-      ost << tpl_dec.prefix;
-    } else {
-      ost << tpl_dec.delim;
-    }
-    print(std::get<I>(t));
-    if constexpr (I + 1 != S) {
-      tuple_print<S, I + 1>(t);
-    } else {
-      ost << tpl_dec.suffix;
-    }
-  }
-  template <typename T0, typename T1> void print(std::pair<T0, T1> const& p) {
-    tuple_print<2, 0>(p);
-  }
-  template <typename... Ts> void print(std::tuple<Ts...> const& t) {
-    tuple_print<sizeof...(Ts), 0>(t);
-  }
-  void set_range_prefix(const char* new_prefix) { rng_dec.prefix = new_prefix; }
-  void set_range_suffix(const char* new_suffix) { rng_dec.suffix = new_suffix; }
-  void set_range_delim(const char* new_delim) { rng_dec.delim = new_delim; }
-  void set_tuple_prefix(const char* new_prefix) { tpl_dec.prefix = new_prefix; }
-  void set_tuple_suffix(const char* new_suffix) { tpl_dec.suffix = new_suffix; }
-  void set_tuple_delim(const char* new_delim) { tpl_dec.delim = new_delim; }
-};
-
-template <typename T>
-constexpr bool is_std_manip_v =
-    std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
-    std::is_same_v<T, decltype(std::setfill(std::declval<char>()))> ||
-    std::is_same_v<T, decltype(std::setprecision(std::declval<int>()))> ||
-    std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
-    std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
-} // namespace common::internal
-
 namespace common::internal {
 template <bool> void print(print_base_t&) {}
 template <bool put_blank, typename T, typename... Ts>
 void print(print_base_t& pb, T const& arg, Ts const&... args) {
   if constexpr (put_blank) {
-    pb.print(" ");
+    pb << " ";
   }
-  pb.print(arg);
-  print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
+  pb << arg;
+  common::internal::print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
 } // namespace common::internal
 namespace common {
 inline void println() { std::cout << "\n"; }
 template <typename... Ts> void println(Ts const&... args) {
   common::internal::print_base_t pb(std::cout);
-  internal::print<false>(pb, args...);
+  common::internal::print<false>(pb, args...);
   std::cout << "\n";
 }
 } // namespace common
@@ -332,10 +365,11 @@ template <bool put_blank, typename T, typename... Ts>
 void print(common::internal::print_base_t& pb, T const& arg,
            Ts const&... args) {
   if constexpr (put_blank) {
-    pb.print(" ");
+    pb << " ";
   }
-  pb.print(arg);
-  print<!common::internal::is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
+  pb << arg;
+  debug::internal::print<
+      !common::internal::is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
 } // namespace debug::internal
 namespace debug {
@@ -348,7 +382,7 @@ template <typename... Ts> void println(Ts const&... args) {
   pb.set_tuple_prefix("(");
   pb.set_tuple_suffix(")");
   pb.set_tuple_delim(", ");
-  internal::print<false>(pb, args...);
+  debug::internal::print<false>(pb, args...);
   std::cerr << std::endl;
 }
 } // namespace debug
