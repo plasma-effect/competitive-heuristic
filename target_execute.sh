@@ -7,6 +7,6 @@ trap 'cat tmp/gridDataBase.csv | \
   grid_slider/create.o > \
   tmp/gridData.js' EXIT
 cp samples/$1.txt sample/in.txt
-time cat sample/in.txt | ./main.o \
+time cat sample/in.txt | ./main_debug.o \
   > sample/out.txt \
   2> sample/debug.txt
