@@ -8,11 +8,9 @@
 #include <boost/container/static_vector.hpp>
 #include <boost/range/irange.hpp>
 #endif
-
 namespace common {
 template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
 template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
-
 template <std::integral Int> auto irange(Int first, Int last) {
   assert(std::cmp_less_equal(first, last));
   return std::views::iota(first, last);
@@ -20,13 +18,10 @@ template <std::integral Int> auto irange(Int first, Int last) {
 template <std::integral Int> auto irange(Int last) {
   return irange(Int(0), last);
 }
-
 template <typename T> using pair = std::pair<T, T>;
-
 template <typename T> class dual_array {
   std::vector<T> inside_;
   std::size_t dim0, dim1;
-
 public:
   dual_array(std::size_t d0, std::size_t d1)
       : inside_(d0 * d1), dim0(d0), dim1(d1) {}
@@ -45,20 +40,16 @@ public:
   common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
   std::size_t size() const { return dim0 * dim1; }
 };
-
 template <> class dual_array<bool> : public dual_array<std::uint8_t> {
 public:
   using dual_array<std::uint8_t>::dual_array;
 };
-
 template <typename T, typename F = std::greater<>>
 using priority_queue = std::priority_queue<T, std::vector<T>, F>;
 } // namespace common
-
 namespace common::internal {
 template <typename T>
 concept stdstream_able = requires(T a) { std::declval<std::ostream&>() << a; };
-
 class print_base_t {
   std::ios_base::fmtflags base_flags;
   std::ostream& ost;
@@ -68,12 +59,10 @@ class print_base_t {
     const char* delim = " ";
   };
   dec_t rng_dec, tpl_dec;
-
 public:
   print_base_t(std::ostream& os)
       : base_flags(os.flags()), ost(os), rng_dec{}, tpl_dec{} {}
   ~print_base_t() { ost.setf(base_flags); }
-
   print_base_t& operator<<(std::string const& str) {
     ost << str;
     return *this;
@@ -154,7 +143,6 @@ public:
   void set_tuple_suffix(const char* new_suffix) { tpl_dec.suffix = new_suffix; }
   void set_tuple_delim(const char* new_delim) { tpl_dec.delim = new_delim; }
 };
-
 template <typename T>
 constexpr bool is_std_manip_v =
     std::is_same_v<T, decltype(std::setbase(std::declval<int>()))> ||
@@ -163,13 +151,11 @@ constexpr bool is_std_manip_v =
     std::is_same_v<T, decltype(std::setw(std::declval<int>()))> ||
     std::is_convertible_v<T, std::ios_base& (*)(std::ios_base&)>;
 } // namespace common::internal
-
 namespace heuristic {
 template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
 class static_priority_container {
   boost::container::static_vector<T, Capacity> cont;
   Compare comp;
-
 public:
   static_priority_container(Compare = {}) : cont{}, comp{} {}
   void push(T value) {
@@ -185,10 +171,8 @@ public:
   auto begin() const { return cont.begin(); }
   auto end() const { return cont.end(); }
 };
-
 template <typename T, std::size_t H, std::size_t W> class static_dual_array {
   std::array<std::array<T, W>, H> inside_;
-
 public:
   static_dual_array() : inside_{} {};
   template <std::integral Int0, std::integral Int1>
@@ -211,7 +195,6 @@ public:
   }
 };
 } // namespace heuristic
-
 namespace heuristic {
 template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
   using internal_t = std::pair<int, heuristic::static_dual_array<int, H, W>>;
@@ -237,7 +220,6 @@ template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
     }
     return false;
   }
-
 public:
   grid_bfs_queue() : grid_ptr(), queue() {
     if (grids.size()) {
@@ -266,7 +248,6 @@ public:
   }
 };
 } // namespace heuristic
-
 namespace heuristic::internal {
 std::mt19937& get_common_engine() {
   thread_local std::mt19937 engine{};
@@ -278,6 +259,9 @@ template <typename T> auto make_uniform_int_distribution(T min, T max) {
   auto& engine = internal::get_common_engine();
   std::uniform_int_distribution<T> dist(min, max);
   return [&engine, dist]() mutable { return dist(engine); };
+}
+template <typename T> auto make_uniform_int_distribution(T max) {
+  return make_uniform_int_distribution<T>(0, max);
 }
 double generate_canonical() {
   auto& engine = internal::get_common_engine();
@@ -291,26 +275,22 @@ template <std::random_access_iterator It> void shuffle(It first, It last) {
   std::shuffle(first, last, internal::get_common_engine());
 }
 } // namespace heuristic
-
 namespace heuristic {
 auto get_time() {
   using namespace std::chrono;
   thread_local const auto start = system_clock::now();
   return duration_cast<milliseconds>(system_clock::now() - start);
 }
-
 class time_control_t {
   std::chrono::milliseconds time_limit_;
   std::size_t update_frequency_;
   double T1, dT, T;
   std::size_t update_count;
   std::chrono::milliseconds current;
-
   void update_temperature() {
     auto nt = double(current.count()) / double(time_limit_.count());
     T = T1 * std::pow(dT, 1 - nt);
   }
-
 public:
   time_control_t(std::chrono::milliseconds time_limit, std::size_t ufreq = 1,
                  double t0 = 2000, double t1 = 600)
@@ -326,7 +306,6 @@ public:
     }
     return current < time_limit_;
   }
-
   double annealing_threshold(double diff) { return std::exp(diff / T); }
   bool transition_check(double diff) {
     if (diff > 0) {
@@ -337,7 +316,6 @@ public:
   }
 };
 } // namespace heuristic
-
 namespace common::internal {
 template <bool> void print(print_base_t&) {}
 template <bool put_blank, typename T, typename... Ts>
@@ -358,7 +336,6 @@ template <typename... Ts> void println(Ts const&... args) {
 }
 } // namespace common
 #ifdef LOCAL_DEBUG
-
 namespace debug::internal {
 template <bool> void print(common::internal::print_base_t&) {}
 template <bool put_blank, typename T, typename... Ts>

@@ -14,6 +14,9 @@ main_debug.o: main.o
 main_measure.o: main.cpp
 	g++ -MMD -MP $< $(CXXFLAGS) -O3 -DLOCAL_MEASURE -o $@
 
+main_raw.o: main.cpp
+	g++ $< $(CXXFLAGS) -O3 -o $@
+
 check_result.o: check.o
 	g++ $^ -o $@
 
@@ -36,14 +39,14 @@ clean:
 .PHONY: remove
 remove:
 	rm -rf samples
+	rm -rf samples_out
 	rm -rf tools
 	rm -rf backup
 	rm -rf tmp
 	rm -f *.zip *.tar.gz
 	rm -f vis.html
 	rm -f best.txt
-	rm -f best.cpp
-	rm -f data.json
+	rm -f parallel.log
 
 .PHONY: reset
 reset: clean remove local_headers_debug.hpp.gch local_headers_measure.hpp.gch

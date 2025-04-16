@@ -41,14 +41,14 @@ bazel*
 # For Local Execution
 tools/
 samples/
+samples_out/
 backup/
 tester.zip
 vis.html
 best.txt
-best.cpp
-data.json
 tmp/
 sample/out.txt
 sample/debug.txt
 gridData.js
 gridDataBase.csv
+parallel.log

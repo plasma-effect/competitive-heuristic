@@ -7,7 +7,7 @@
 
 module(name = "competitive_heuristic")
 
-bazel_dep(name = "competitive_library", version = "0.0.6")
+bazel_dep(name = "competitive_library", version = "0.0.10")
 local_path_override(
     module_name = "competitive_library",
     path = "competitive-library",
