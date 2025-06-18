@@ -2,6 +2,12 @@ BasedOnStyle: LLVM
 IndentWidth: 2
 Language: Cpp
 
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortNamespacesOnASingleLine: false
+
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Right
 PointerAlignment: Left
