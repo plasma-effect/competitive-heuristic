@@ -1,20 +1,15 @@
-#ifdef LOCAL_DEBUG
-#include "local_headers_debug.hpp"
-#elif LOCAL_MEASURE
-#include "local_headers_measure.hpp"
-#else
-#include <atcoder/all>
-#include <bits/stdc++.h>
-#include <boost/container/static_vector.hpp>
-#include <boost/range/irange.hpp>
-#endif
+#include "atcoder/all"
+#include "bits/stdc++.h"
+#include "boost/container/static_vector.hpp"
+#include "boost/range/irange.hpp"
+#include "debug_print.hpp"
 #include "heuristic.hpp"
+#include "math.hpp"
 #include "normal_print.hpp"
 #ifdef LOCAL_DEBUG
-#include "debug_print.hpp"
+#include "grid_slider/grid.hpp"
 #else
 namespace debug {
-template <typename... Ts> void println(Ts const&...) {}
 template <std::size_t, std::size_t> class grid {
 public:
   template <std::integral Int0, std::integral Int1>
@@ -27,6 +22,7 @@ public:
 };
 } // namespace debug
 #endif
+#define IGNORE [[maybe_unused]] auto _
 
 void Main() {}
 

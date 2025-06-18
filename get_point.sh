@@ -1,6 +1,6 @@
 #!/bin/bash
 set -uo pipefail
-TARGET_LESSER=1
+TARGET_LESSER=0
 make main_measure.o check.o
 if [ $? -ne 0 ]; then
   exit 1

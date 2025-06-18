@@ -39,6 +39,7 @@ ac-library-*.tar.gz
 bazel*
 
 # For Local Execution
+build
 tools/
 samples/
 samples_out/

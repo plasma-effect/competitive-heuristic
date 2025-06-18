@@ -1,3 +1,6 @@
 [submodule "competitive-library"]
 	path = competitive-library
 	url = git@github.com:plasma-effect/competitive-library.git
+[submodule "json"]
+	path = json
+	url = https://github.com/nlohmann/json.git
