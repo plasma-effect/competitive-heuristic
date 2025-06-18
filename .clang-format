@@ -6,7 +6,6 @@ AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
-AllowShortNamespacesOnASingleLine: false
 
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Right

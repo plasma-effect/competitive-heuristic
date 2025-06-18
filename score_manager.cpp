@@ -1,9 +1,14 @@
-#include "math.hpp"
 #include "nlohmann/json.hpp"
 #include <format>
 #include <fstream>
 #include <iostream>
 namespace fs = std::filesystem;
+
+namespace common {
+constexpr int abs(int v) {
+  return v < 0 ? -v : v;
+}
+} // namespace common
 
 int main(int argc, const char* argv[]) {
   if (argc < 3) {

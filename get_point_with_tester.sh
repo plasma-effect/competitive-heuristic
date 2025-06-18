@@ -1,12 +1,13 @@
 #!/bin/bash
 set -uo pipefail
-make -j4 main_measure.o manager.o
+cmake --build build/release --target main
+cmake --build build/develop --target score_manager
 if [ $? -ne 0 ]; then
   exit 1
 fi
 mkdir -p samples_out
 SUM=0
-ls samples/*.txt | parallel -k --bar --joblog parallel.log './main_measure.o < {} > samples_out/$(basename {}) 2>/dev/null'
+ls samples/*.txt | parallel -k --bar --joblog parallel.log './build/release/main < {} > samples_out/$(basename {}) 2>/dev/null'
 if [ $? -ne 0 ]; then
   awk 'NR > 1 && $7 != 0 { print $9 }' parallel.log
   exit 1
@@ -16,4 +17,4 @@ for file in $(ls samples/*.txt); do
   SUM=$((SUM+NOW)) 
 done
 
-./manager.o score_setting.json $((SUM))
+./build/develop/score_manager score_setting.json $((SUM))
