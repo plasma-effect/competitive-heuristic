@@ -35,6 +35,7 @@ template <typename T> using pair = std::pair<T, T>;
 template <typename T> class dual_array {
   std::vector<T> inside_;
   std::size_t dim0, dim1;
+
 public:
   dual_array(std::size_t d0, std::size_t d1)
       : inside_(d0 * d1), dim0(d0), dim1(d1) {}
@@ -50,8 +51,12 @@ public:
     CL_ASSERT(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
     return inside_[i0 * dim1 + i1];
   }
-  common::pair<std::size_t> dimensions() const { return {dim0, dim1}; }
-  std::size_t size() const { return dim0 * dim1; }
+  common::pair<std::size_t> dimensions() const {
+    return {dim0, dim1};
+  }
+  std::size_t size() const {
+    return dim0 * dim1;
+  }
 };
 template <> class dual_array<bool> : public dual_array<std::uint8_t> {
 public:
@@ -79,10 +84,13 @@ class print_base_t {
     const char* delim = " ";
   };
   dec_t rng_dec, tpl_dec;
+
 public:
   print_base_t(std::ostream& os)
       : base_flags(os.flags()), ost(os), rng_dec{}, tpl_dec{} {}
-  ~print_base_t() { ost.flags(base_flags); }
+  ~print_base_t() {
+    ost.flags(base_flags);
+  }
   print_base_t& operator<<(std::string const& str) {
     ost << str;
     return *this;
@@ -189,12 +197,24 @@ public:
     ost << rng_dec.suffix;
     return *this;
   }
-  void set_range_prefix(const char* new_prefix) { rng_dec.prefix = new_prefix; }
-  void set_range_suffix(const char* new_suffix) { rng_dec.suffix = new_suffix; }
-  void set_range_delim(const char* new_delim) { rng_dec.delim = new_delim; }
-  void set_tuple_prefix(const char* new_prefix) { tpl_dec.prefix = new_prefix; }
-  void set_tuple_suffix(const char* new_suffix) { tpl_dec.suffix = new_suffix; }
-  void set_tuple_delim(const char* new_delim) { tpl_dec.delim = new_delim; }
+  void set_range_prefix(const char* new_prefix) {
+    rng_dec.prefix = new_prefix;
+  }
+  void set_range_suffix(const char* new_suffix) {
+    rng_dec.suffix = new_suffix;
+  }
+  void set_range_delim(const char* new_delim) {
+    rng_dec.delim = new_delim;
+  }
+  void set_tuple_prefix(const char* new_prefix) {
+    tpl_dec.prefix = new_prefix;
+  }
+  void set_tuple_suffix(const char* new_suffix) {
+    tpl_dec.suffix = new_suffix;
+  }
+  void set_tuple_delim(const char* new_delim) {
+    tpl_dec.delim = new_delim;
+  }
 };
 template <typename T>
 constexpr bool is_std_manip_v =
@@ -214,7 +234,9 @@ void print(print_base_t& pb, T const& arg, Ts const&... args) {
 }
 } // namespace common::internal
 namespace debug {
-inline void println() { std::cerr << std::endl; }
+inline void println() {
+  std::cerr << std::endl;
+}
 template <typename... Ts> void println(Ts const&... args) {
   common::internal::print_base_t pb(std::cerr);
   pb.set_range_prefix("{");
@@ -237,6 +259,7 @@ template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
 class static_priority_container {
   boost::container::static_vector<T, Capacity> cont;
   Compare comp;
+
 public:
   static_priority_container(Compare = {}) : cont{}, comp{} {}
   void push(T value) {
@@ -249,11 +272,16 @@ public:
       std::ranges::push_heap(cont, comp);
     }
   }
-  auto begin() const { return cont.begin(); }
-  auto end() const { return cont.end(); }
+  auto begin() const {
+    return cont.begin();
+  }
+  auto end() const {
+    return cont.end();
+  }
 };
 template <typename T, std::size_t H, std::size_t W> class static_dual_array {
   std::array<std::array<T, W>, H> inside_;
+
 public:
   static_dual_array() : inside_{} {};
   template <std::integral Int0, std::integral Int1>
@@ -268,8 +296,12 @@ public:
     CL_ASSERT(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, W));
     return inside_[i0][i1];
   }
-  std::pair<std::size_t, std::size_t> dimensions() const { return {H, W}; }
-  std::size_t size() const { return H * W; }
+  std::pair<std::size_t, std::size_t> dimensions() const {
+    return {H, W};
+  }
+  std::size_t size() const {
+    return H * W;
+  }
   friend common::internal::print_base_t&
   operator<<(common::internal::print_base_t& pb, static_dual_array const& ar) {
     return pb << ar.inside_;
@@ -301,6 +333,7 @@ template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
     }
     return false;
   }
+
 public:
   grid_bfs_queue() : grid_ptr(), queue() {
     if (grids.size()) {
@@ -312,9 +345,15 @@ public:
     }
     ++grid_ptr->first;
   }
-  ~grid_bfs_queue() { grids.push_back(std::move(grid_ptr)); }
-  void push(int i, int j, T&& arg) { queue.emplace(i, j, std::move(arg)); }
-  void push(int i, int j, const T& arg) { queue.emplace(i, j, arg); }
+  ~grid_bfs_queue() {
+    grids.push_back(std::move(grid_ptr));
+  }
+  void push(int i, int j, T&& arg) {
+    queue.emplace(i, j, std::move(arg));
+  }
+  void push(int i, int j, const T& arg) {
+    queue.emplace(i, j, arg);
+  }
   template <typename... Args> void emplace(int i, int j, Args&&... args) {
     push(i, j, T(std::forward<Args>(args)...));
   }
@@ -339,7 +378,9 @@ inline std::mt19937& get_common_engine() {
 template <typename T> auto make_uniform_int_distribution(T min, T max) {
   auto& engine = internal::get_common_engine();
   std::uniform_int_distribution<T> dist(min, max);
-  return [&engine, dist]() mutable { return dist(engine); };
+  return [&engine, dist]() mutable {
+    return dist(engine);
+  };
 }
 template <typename T> auto make_uniform_int_distribution(T max) {
   return make_uniform_int_distribution<T>(0, max);
@@ -367,6 +408,7 @@ namespace internal {
 template <typename Derived> class time_control_base {
   time_t time_limit_, current_;
   std::size_t update_frequency_, update_count_;
+
 public:
   time_control_base(time_t time_limit, std::size_t ufreq = 1)
       : time_limit_(time_limit), current_(get_time()), update_frequency_(ufreq),
@@ -388,6 +430,7 @@ struct time_control_t : internal::time_control_base<time_control_t> {
 class time_control_with_annealing
     : public internal::time_control_base<time_control_with_annealing> {
   using time_control_base::time_control_base;
+
 public:
   double T1, dT, T;
   time_control_with_annealing(time_t time_limit, std::size_t ufreq, double t0,
@@ -399,7 +442,9 @@ public:
     auto nt = double(current.count()) / double(time_limit.count());
     T = T1 * std::pow(dT, 1 - nt);
   }
-  double annealing_threshold(double diff) { return std::exp(diff / T); }
+  double annealing_threshold(double diff) {
+    return std::exp(diff / T);
+  }
   bool transition_check(double diff) {
     if (diff > 0) {
       return true;
@@ -427,7 +472,9 @@ template <typename T> std::vector<T> make_factorial_array(std::size_t max) {
 }
 } // namespace common
 namespace common {
-inline void println() { std::cout << "\n"; }
+inline void println() {
+  std::cout << "\n";
+}
 template <typename... Ts> void println(Ts const&... args) {
   common::internal::print_base_t pb(std::cout);
   common::internal::print<false>(pb, args...);
