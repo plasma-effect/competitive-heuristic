@@ -23,6 +23,7 @@ cmake -B build/release
 cmake --build build/competitive-library --target expander
 ./build/competitive-library/expander/expander templates/main.cpp -o main.cpp
 cp templates/experiment.cpp experiment.cpp
+clang-format main.cpp experiment.cpp -i
 
 rm -rf samples
 rm -rf samples_out

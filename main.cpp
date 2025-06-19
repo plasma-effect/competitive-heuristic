@@ -35,6 +35,7 @@ template <typename T> using pair = std::pair<T, T>;
 template <typename T> class dual_array {
   std::vector<T> inside_;
   std::size_t dim0, dim1;
+
 public:
   dual_array(std::size_t d0, std::size_t d1)
       : inside_(d0 * d1), dim0(d0), dim1(d1) {}
@@ -83,6 +84,7 @@ class print_base_t {
     const char* delim = " ";
   };
   dec_t rng_dec, tpl_dec;
+
 public:
   print_base_t(std::ostream& os)
       : base_flags(os.flags()), ost(os), rng_dec{}, tpl_dec{} {}
@@ -257,6 +259,7 @@ template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
 class static_priority_container {
   boost::container::static_vector<T, Capacity> cont;
   Compare comp;
+
 public:
   static_priority_container(Compare = {}) : cont{}, comp{} {}
   void push(T value) {
@@ -278,6 +281,7 @@ public:
 };
 template <typename T, std::size_t H, std::size_t W> class static_dual_array {
   std::array<std::array<T, W>, H> inside_;
+
 public:
   static_dual_array() : inside_{} {};
   template <std::integral Int0, std::integral Int1>
@@ -329,6 +333,7 @@ template <typename T, std::size_t H, std::size_t W> class grid_bfs_queue {
     }
     return false;
   }
+
 public:
   grid_bfs_queue() : grid_ptr(), queue() {
     if (grids.size()) {
@@ -403,6 +408,7 @@ namespace internal {
 template <typename Derived> class time_control_base {
   time_t time_limit_, current_;
   std::size_t update_frequency_, update_count_;
+
 public:
   time_control_base(time_t time_limit, std::size_t ufreq = 1)
       : time_limit_(time_limit), current_(get_time()), update_frequency_(ufreq),
@@ -424,6 +430,7 @@ struct time_control_t : internal::time_control_base<time_control_t> {
 class time_control_with_annealing
     : public internal::time_control_base<time_control_with_annealing> {
   using time_control_base::time_control_base;
+
 public:
   double T1, dT, T;
   time_control_with_annealing(time_t time_limit, std::size_t ufreq, double t0,

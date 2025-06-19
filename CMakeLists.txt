@@ -40,3 +40,4 @@ target_compile_options(score_manager PRIVATE
 )
 
 add_subdirectory(grid_slider)
+add_subdirectory(example_problem)
