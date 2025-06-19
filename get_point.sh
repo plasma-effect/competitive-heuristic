@@ -1,7 +1,6 @@
 #!/bin/bash
 set -uo pipefail
-cmake --build build/release --target main
-cmake --build build/develop --target score_manager
+cmake --build build/release --target main score_manager -j4
 if [ $? -ne 0 ]; then
   exit 1
 fi
@@ -17,4 +16,4 @@ for file in $(ls samples/*.txt); do
   SUM=$((SUM+NOW)) 
 done
 
-./build/develop/score_manager score_setting.json $((SUM))
+./build/release/score_manager score_setting.json $((SUM))

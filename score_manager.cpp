@@ -1,14 +1,7 @@
 #include "nlohmann/json.hpp"
-#include <format>
 #include <fstream>
 #include <iostream>
 namespace fs = std::filesystem;
-
-namespace common {
-constexpr int abs(int v) {
-  return v < 0 ? -v : v;
-}
-} // namespace common
 
 int main(int argc, const char* argv[]) {
   if (argc < 3) {
@@ -31,15 +24,13 @@ int main(int argc, const char* argv[]) {
     best_result >> best;
   }
   if ((increase && score > best) || (!increase && score < best)) {
-    std::cout << "update the best score by " << common::abs(best - score)
+    std::cout << "update the best score by " << std::abs(best - score)
               << std::endl;
     std::cout << "new best score is " << score << std::endl;
     std::fstream best_result(result, std::ios::out);
     best_result << score << std::endl;
-    ;
   } else {
-    std::cout << std::format("{} (best score = {}, diff = {})", score, best,
-                             common::abs(best - score))
-              << std::endl;
+    std::cout << score << " (best score = " << best
+              << ", diff = " << std::abs(best - score) << ")" << std::endl;
   }
 }
