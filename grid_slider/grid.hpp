@@ -11,7 +11,9 @@ struct duplicate_checker_t {
       throw std::logic_error(std::format(fmt, std::forward<Ts>(args)...));
     }
   }
-  ~duplicate_checker_t() { check = false; }
+  ~duplicate_checker_t() {
+    check = false;
+  }
 };
 } // namespace internal
 namespace debug {

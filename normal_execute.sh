@@ -16,3 +16,8 @@ echo "execution succeed (${SCORE})"
 else
 echo "execution succeed"
 fi
+
+if command -v clip.exe >/dev/null 2>&1; then
+  cat ./main.cpp | clip.exe
+  echo "copied answer code to clipboard"
+fi

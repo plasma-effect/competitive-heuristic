@@ -5,7 +5,7 @@ git submodule update --remote
 
 if [ ! -e build/competitive-library ]; then
   cmake -S competitive-library/ \
-    -B build/competitive-library \
+    -B build/competitive-library -S competitive-library \
     -DCMAKE_TOOLCHAIN_FILE=$PWD/competitive-library/toolchains/develop.cmake
 fi
 if [ ! -e build/develop ]; then
@@ -16,7 +16,8 @@ if [ ! -e build/release ]; then
   cmake -B build/release \
     -DCMAKE_TOOLCHAIN_FILE=$PWD/competitive-library/toolchains/release.cmake
 fi
-cmake -S competitive-library/ -B build/competitive-library
+rm -f build/competitive-library/embedded_headers.cpp
+cmake -B build/competitive-library -S competitive-library
 cmake -B build/develop
 cmake -B build/release
 

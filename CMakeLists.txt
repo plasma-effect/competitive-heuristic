@@ -21,7 +21,7 @@ if(COMPETITIVE_BUILD_MODE STREQUAL "Develop")
   target_include_directories(main PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
   )
-  target_compile_options(main PRIVATE -g)
+  target_compile_options(main PRIVATE -g -O3)
   target_compile_definitions(main PRIVATE LOCAL_DEBUG)
   target_link_libraries(main PRIVATE stdc++exp)
 else()

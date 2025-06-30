@@ -1,11 +1,13 @@
+#if !defined(LOCAL_DEBUG) && !defined(LOCAL_MEASURE)
+#define NDEBUG
+#endif
 #include "atcoder/all"
 #include "bits/stdc++.h"
 #include "boost/container/static_vector.hpp"
 #include "boost/range/irange.hpp"
-#include "debug_print.hpp"
-#include "heuristic.hpp"
-#include "math.hpp"
-#include "normal_print.hpp"
+#include "competitive/heuristic.hpp"
+#include "competitive/math.hpp"
+#include "competitive/stdio.hpp"
 #ifdef LOCAL_DEBUG
 #include "grid_slider/grid.hpp"
 #else

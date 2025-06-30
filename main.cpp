@@ -1,3 +1,6 @@
+#if !defined(LOCAL_DEBUG) && !defined(LOCAL_MEASURE)
+#define NDEBUG
+#endif
 #include "atcoder/all"
 #include "bits/stdc++.h"
 #include "boost/container/static_vector.hpp"
@@ -22,16 +25,6 @@ namespace debug::internal {
 #define CL_ASSERT(expr) assert(expr)
 #endif
 namespace common {
-template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
-template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
-template <std::integral Int> auto irange(Int first, Int last) {
-  CL_ASSERT(std::cmp_less_equal(first, last));
-  return std::views::iota(first, last);
-}
-template <std::integral Int> auto irange(Int last) {
-  return irange(Int(0), last);
-}
-template <typename T> using pair = std::pair<T, T>;
 template <typename T> class dual_array {
   std::vector<T> inside_;
   std::size_t dim0, dim1;
@@ -51,26 +44,155 @@ public:
     CL_ASSERT(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, dim1));
     return inside_[i0 * dim1 + i1];
   }
-  common::pair<std::size_t> dimensions() const {
+  template <std::integral Int0, std::integral Int1> T& at(Int0 i0, Int1 i1) {
+    if (std::cmp_less(i0, 0) || std::cmp_greater_equal(i0, dim0)) [[unlikely]] {
+      throw std::out_of_range("argument 1 of dual_array::at is out of range");
+    } else if (std::cmp_less(i1, 0) || std::cmp_greater_equal(i1, dim1))
+        [[unlikely]] {
+      throw std::out_of_range("argument 2 of dual_array::at is out of range");
+    }
+    return inside_[i0 * dim1 + i1];
+  }
+  template <std::integral Int0, std::integral Int1>
+  T const& at(Int0 i0, Int1 i1) const {
+    if (std::cmp_less(i0, 0) || std::cmp_greater_equal(i0, dim0)) [[unlikely]] {
+      throw std::out_of_range("argument 1 of dual_array::at is out of range");
+    } else if (std::cmp_less(i1, 0) || std::cmp_greater_equal(i1, dim1))
+        [[unlikely]] {
+      throw std::out_of_range("argument 2 of dual_array::at is out of range");
+    }
+    return inside_[i0 * dim1 + i1];
+  }
+  std::pair<std::size_t, std::size_t> dimensions() const {
     return {dim0, dim1};
   }
   std::size_t size() const {
     return dim0 * dim1;
   }
 };
-template <> class dual_array<bool> : public dual_array<std::uint8_t> {
-public:
-  using dual_array<std::uint8_t>::dual_array;
+namespace internal {
+struct bool_ploxy {
+  bool v = false;
+  operator bool() const {
+    return v;
+  }
+  bool_ploxy& operator=(bool u) {
+    v = u;
+    return *this;
+  }
 };
-template <typename T, typename F = std::greater<>>
-using priority_queue = std::priority_queue<T, std::vector<T>, F>;
-constexpr bool is_debug() {
-#ifdef LOCAL_DEBUG
-  return true;
-#else
-  return false;
-#endif
+} // namespace internal
+template <> class dual_array<bool> : public dual_array<internal::bool_ploxy> {
+public:
+  using dual_array<internal::bool_ploxy>::dual_array;
+};
+} // namespace common
+namespace common {
+template <std::integral Int> auto irange(Int first, Int last) {
+  CL_ASSERT(std::cmp_less_equal(first, last));
+  return std::views::iota(first, last);
 }
+template <std::integral Int> auto irange(Int last) {
+  return irange(Int(0), last);
+}
+namespace internal {
+template <std::integral Int> struct dual_irange_t {
+  Int f0, f1, e0, e1;
+  struct iterator {
+    using difference_type = Int;
+    using value_type = std::pair<Int, Int>;
+    using iterator_concept = std::input_iterator_tag;
+    Int f0, f1, e0, e1;
+    Int v0, v1;
+    auto operator*() const {
+      return std::pair(v0, v1);
+    }
+    auto& operator++() {
+      if (++v1 == e1) {
+        v1 = f1;
+        ++v0;
+      }
+      return *this;
+    }
+    auto operator++(int) {
+      auto ret = *this;
+      if (++v1 == e1) {
+        v1 = f1;
+        ++v0;
+      }
+      return ret;
+    }
+    bool operator==(std::default_sentinel_t) const {
+      return v0 == e0;
+    }
+  };
+  auto begin() const {
+    return iterator{f0, f1, e0, e1, f0, f1};
+  }
+  auto end() const {
+    return std::default_sentinel;
+  }
+};
+} // namespace internal
+template <std::integral Int> auto dual_irange(Int f0, Int e0, Int f1, Int e1) {
+  CL_ASSERT(std::cmp_less_equal(f0, e0));
+  CL_ASSERT(std::cmp_less_equal(f1, e1));
+  return internal::dual_irange_t{f0, f1, e0, e1};
+}
+template <std::integral Int> auto dual_irange(Int e0, Int e1) {
+  return dual_irange(Int(0), e0, Int(0), e1);
+}
+} // namespace common
+namespace common {
+namespace internal {
+template <typename T, typename Proj, typename Comp> struct projected_compare {
+  Proj proj;
+  Comp comp;
+  bool operator()(T const& a, T const& b) const {
+    return comp(proj(a), proj(b));
+  }
+};
+} // namespace internal
+enum class priority { greater, less };
+template <typename T, priority p = priority::less> class priority_queue {
+  std::priority_queue<T, std::vector<T>,
+                      std::function<bool(T const&, T const&)>>
+      queue;
+
+public:
+  template <typename Proj = std::identity>
+  priority_queue(Proj proj = {})
+      : queue([proj](T const& a, T const& b) {
+          if constexpr (p == priority::less) {
+            return proj(a) > proj(b);
+          } else {
+            return proj(a) < proj(b);
+          }
+        }) {}
+  std::size_t size() const {
+    return queue.size();
+  }
+  T top() const {
+    return queue.top();
+  }
+  void push(T const& v) {
+    queue.push(v);
+  }
+  void push(T&& v) {
+    queue.push(std::move(v));
+  }
+  template <typename... Args> void emplace(Args&&... args) {
+    queue.emplace(std::forward<Args>(args)...);
+  }
+  void pop() {
+    queue.pop();
+  }
+};
+} // namespace common
+namespace common {
+template <typename T> constexpr auto max_v = std::numeric_limits<T>::max();
+template <typename T> constexpr auto min_v = std::numeric_limits<T>::min();
+template <typename T> using pair = std::pair<T, T>;
 } // namespace common
 namespace common::internal {
 template <typename T>
@@ -233,35 +355,23 @@ void print(print_base_t& pb, T const& arg, Ts const&... args) {
   print<!is_std_manip_v<std::remove_cv_t<T>>>(pb, args...);
 }
 } // namespace common::internal
-namespace debug {
-inline void println() {
-  std::cerr << std::endl;
-}
-template <typename... Ts> void println(Ts const&... args) {
-  common::internal::print_base_t pb(std::cerr);
-  pb.set_range_prefix("{");
-  pb.set_range_suffix("}");
-  pb.set_range_delim(", ");
-  pb.set_tuple_prefix("(");
-  pb.set_tuple_suffix(")");
-  pb.set_tuple_delim(", ");
-  common::internal::print<false>(pb, args...);
-  std::cerr << std::endl;
-}
-} // namespace debug
-#ifdef LOCAL_DEBUG
-#define DEBUG_PRINT(...) debug::println(__LINE__, ":", __VA_ARGS__)
-#else
-#define DEBUG_PRINT(...) (void)(0)
-#endif
 namespace heuristic {
-template <typename T, std::size_t Capacity, typename Compare = std::greater<>>
+template <typename T, std::size_t Capacity,
+          common::priority p = common::priority::greater>
 class static_priority_container {
   boost::container::static_vector<T, Capacity> cont;
-  Compare comp;
+  std::function<bool(T const&, T const&)> comp;
 
 public:
-  static_priority_container(Compare = {}) : cont{}, comp{} {}
+  template <typename Proj = std::identity>
+  static_priority_container(Proj proj = {})
+      : cont{}, comp([proj](T const& a, T const& b) {
+          if constexpr (p == common::priority::less) {
+            return proj(a) < proj(b);
+          } else {
+            return proj(a) > proj(b);
+          }
+        }) {}
   void push(T value) {
     if (cont.size() < Capacity) {
       cont.push_back(value);
@@ -272,11 +382,20 @@ public:
       std::ranges::push_heap(cont, comp);
     }
   }
+  template <typename... Args> void emplace(Args&&... args) {
+    push(T(std::forward<Args>(args)...));
+  }
   auto begin() const {
     return cont.begin();
   }
   auto end() const {
     return cont.end();
+  }
+  std::size_t size() const {
+    return cont.size();
+  }
+  void clear() {
+    cont.clear();
   }
 };
 template <typename T, std::size_t H, std::size_t W> class static_dual_array {
@@ -294,6 +413,29 @@ public:
   T const& operator()(Int0 i0, Int1 i1) const {
     CL_ASSERT(std::cmp_greater_equal(i0, 0) && std::cmp_less(i0, H));
     CL_ASSERT(std::cmp_greater_equal(i1, 0) && std::cmp_less(i1, W));
+    return inside_[i0][i1];
+  }
+  template <std::integral Int0, std::integral Int1> T& at(Int0 i0, Int1 i1) {
+    if (std::cmp_less(i0, 0) || std::cmp_greater_equal(i0, H)) [[unlikely]] {
+      throw std::out_of_range(
+          "argument 1 of static_dual_array::at is out of range");
+    } else if (std::cmp_less(i1, 0) || std::cmp_greater_equal(i1, W))
+        [[unlikely]] {
+      throw std::out_of_range(
+          "argument 2 of static_dual_array::at is out of range");
+    }
+    return inside_[i0][i1];
+  }
+  template <std::integral Int0, std::integral Int1>
+  T const& at(Int0 i0, Int1 i1) const {
+    if (std::cmp_less(i0, 0) || std::cmp_greater_equal(i0, H)) [[unlikely]] {
+      throw std::out_of_range(
+          "argument 1 of static_dual_array::at is out of range");
+    } else if (std::cmp_less(i1, 0) || std::cmp_greater_equal(i1, W))
+        [[unlikely]] {
+      throw std::out_of_range(
+          "argument 2 of static_dual_array::at is out of range");
+    }
     return inside_[i0][i1];
   }
   std::pair<std::size_t, std::size_t> dimensions() const {
@@ -369,21 +511,149 @@ public:
 };
 } // namespace heuristic
 namespace heuristic {
+namespace inside {
+template <typename T> struct persistent_array_inside {
+  using ptr = std::shared_ptr<persistent_array_inside>;
+  std::size_t idx, threshold;
+  ptr lhs = nullptr, rhs = nullptr;
+  T value = {};
+  persistent_array_inside(std::size_t min, std::size_t max)
+      : idx(min), threshold(std::midpoint(min + 1, max)) {
+    CL_ASSERT(min < max);
+    if (min + 1 != threshold) {
+      lhs = std::make_shared<persistent_array_inside>(min + 1, threshold);
+    }
+    if (threshold != max) {
+      rhs = std::make_shared<persistent_array_inside>(threshold, max);
+    }
+  }
+  template <typename U> ptr update(std::size_t i, U&& u) const {
+    auto ret = std::make_shared<persistent_array_inside>(*this);
+    if (i == idx) {
+      ret->value = std::forward<U>(u);
+    } else if (i < threshold) {
+      ret->lhs = lhs->update(i, std::forward<U>(u));
+    } else {
+      ret->rhs = rhs->update(i, std::forward<U>(u));
+    }
+    return ret;
+  }
+  T const& get(std::size_t i) const {
+    if (i == idx) {
+      return value;
+    } else if (i < threshold) {
+      return lhs->get(i);
+    } else {
+      return rhs->get(i);
+    }
+  }
+  struct iterator {
+    using difference_type = std::ptrdiff_t;
+    using value_type = T;
+    using iterator_concept = std::input_iterator_tag;
+    std::size_t idx;
+    std::stack<ptr> ptrs;
+    iterator& operator++() {
+      ++idx;
+      if (idx < ptrs.top()->threshold) {
+        ptrs.push(ptrs.top()->lhs);
+      } else {
+        while (ptrs.size()) {
+          if (ptrs.top()->rhs && ptrs.top()->rhs->idx == idx) {
+            ptrs.push(ptrs.top()->rhs);
+            break;
+          }
+          ptrs.pop();
+        }
+      }
+      return *this;
+    }
+    iterator operator++(int) {
+      auto ret = *this;
+      operator++();
+      return ret;
+    }
+    bool operator==(std::default_sentinel_t) const {
+      return ptrs.size() == 0;
+    }
+    const T& operator*() const {
+      CL_ASSERT(ptrs.size() > 0);
+      return ptrs.top()->value;
+    }
+  };
+};
+} // namespace inside
+template <std::copy_constructible T> class partially_persistent_array {
+  std::shared_ptr<inside::persistent_array_inside<T>> root;
+  std::size_t size_;
+
+public:
+  partially_persistent_array(std::size_t s)
+      : root(std::make_shared<inside::persistent_array_inside<T>>(0, s)),
+        size_(s) {}
+  void update(std::size_t i, T const& v) {
+    root = root->update(i, v);
+  }
+  T const& get(std::size_t i) const {
+    CL_ASSERT(i < size_);
+    return root->get(i);
+  }
+  std::size_t size() const {
+    return size_;
+  }
+  auto begin() const {
+    typename inside::persistent_array_inside<T>::iterator ite{};
+    ite.ptrs.push(root);
+    return ite;
+  }
+  auto end() const {
+    return std::default_sentinel;
+  }
+};
+} // namespace heuristic
+namespace heuristic {
 namespace internal {
 inline std::mt19937& get_common_engine() {
   thread_local std::mt19937 engine{};
   return engine;
 }
-} // namespace internal
-template <typename T> auto make_uniform_int_distribution(T min, T max) {
-  auto& engine = internal::get_common_engine();
-  std::uniform_int_distribution<T> dist(min, max);
+template <typename T, typename... Args> auto make_distribution(Args&&... args) {
+  auto& engine = get_common_engine();
+  T dist(std::forward<Args>(args)...);
   return [&engine, dist]() mutable {
     return dist(engine);
   };
 }
+} // namespace internal
+template <typename T> auto make_uniform_int_distribution(T min, T max) {
+  using type = std::uniform_int_distribution<T>;
+  return internal::make_distribution<type>(min, max);
+}
 template <typename T> auto make_uniform_int_distribution(T max) {
   return make_uniform_int_distribution<T>(0, max);
+}
+template <typename T> auto make_uniform_real_distribution(T min, T max) {
+  using type = std::uniform_real_distribution<T>;
+  return internal::make_distribution<type>(min, max);
+}
+template <typename T> auto make_uniform_real_distribution(T max) {
+  return make_uniform_real_distribution<T>(0, max);
+}
+inline auto make_bernoulli_distribution(double p = 0.5) {
+  using type = std::bernoulli_distribution;
+  return internal::make_distribution<type>(p);
+}
+template <std::input_iterator Ite>
+auto make_discrete_distribution(const Ite& first, const Ite& last) {
+  using type = std::discrete_distribution<std::size_t>;
+  return internal::make_distribution<type>(first, last);
+}
+template <std::ranges::input_range Rng>
+auto make_discrete_distribution(const Rng& rng) {
+  return make_discrete_distribution(rng.begin(), rng.end());
+}
+inline auto make_discrete_distribution(std::initializer_list<double> list) {
+  return make_discrete_distribution(list.begin(), list.end());
 }
 inline double generate_canonical() {
   auto& engine = internal::get_common_engine();
@@ -399,7 +669,7 @@ template <std::random_access_iterator It> void shuffle(It first, It last) {
 } // namespace heuristic
 namespace heuristic {
 using time_t = std::chrono::milliseconds;
-auto get_time() {
+inline auto get_time() {
   using namespace std::chrono;
   thread_local const auto start = system_clock::now();
   return duration_cast<milliseconds>(system_clock::now() - start);
@@ -454,23 +724,64 @@ public:
   }
 };
 } // namespace heuristic
-namespace common {
-template <std::integral T> constexpr T abs(T const& v) {
-  if constexpr (std::is_signed_v<T>) {
-    return v < 0 ? -v : v;
-  } else {
-    return v;
-  }
-}
+namespace math {
 template <typename T> std::vector<T> make_factorial_array(std::size_t max) {
   std::vector<T> ret(max + 1);
   ret[0] = T(1);
-  for (auto i : common::irange(max)) {
+  for (auto i = 0uz; i < max; ++i) {
     ret[i + 1] = ret[i] * T(i + 1);
   }
   return ret;
 }
-} // namespace common
+} // namespace math
+namespace math {
+template <typename T, typename F> struct monoid_t {
+  using value_t = T;
+  T e_;
+  F op_;
+  constexpr monoid_t(T e, F op) : e_(e), op_(op) {}
+  constexpr T operator()() const {
+    return e_;
+  }
+  constexpr T operator()(T const& lhs, T const& rhs) const {
+    return op_(lhs, rhs);
+  }
+};
+template <typename T> constexpr monoid_t plus{T(0), std::plus<>()};
+template <typename T> constexpr monoid_t multiplies{T(1), std::multiplies<>()};
+template <typename T>
+constexpr monoid_t min{common::max_v<T>, [](T const& a, T const& b) {
+                         return std::min(a, b);
+                       }};
+template <typename T>
+constexpr monoid_t max{common::min_v<T>, [](T const& a, T const& b) {
+                         return std::max(a, b);
+                       }};
+} // namespace math
+namespace debug {
+inline void println() {
+  std::cerr << std::endl;
+}
+template <typename... Ts> void println(Ts const&... args) {
+  common::internal::print_base_t pb(std::cerr);
+  pb.set_range_prefix("{");
+  pb.set_range_suffix("}");
+  pb.set_range_delim(", ");
+  pb.set_tuple_prefix("(");
+  pb.set_tuple_suffix(")");
+  pb.set_tuple_delim(", ");
+  common::internal::print<false>(pb, args...);
+  std::cerr << std::endl;
+}
+} // namespace debug
+#ifdef LOCAL_DEBUG
+#define CL_PP_STR_I(s) #s
+#define CL_PP_STR(s) CL_PP_STR_I(s)
+#define DEBUG_PRINT(...)                                                       \
+  debug::println(CL_PP_STR(__LINE__) ":" __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) (void)(0)
+#endif
 namespace common {
 inline void println() {
   std::cout << "\n";
