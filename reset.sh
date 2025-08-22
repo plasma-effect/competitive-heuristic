@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-git submodule update --remote
-
 if [ ! -e build/competitive-library ]; then
   cmake -S competitive-library/ \
     -B build/competitive-library -S competitive-library \

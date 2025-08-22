@@ -19,6 +19,6 @@ echo "execution succeed"
 fi
 
 if command -v clip.exe >/dev/null 2>&1; then
-  cat ./main.cpp | clip.exe
-  echo "copied answer code to clipboard"
+  cat sample/out.txt | clip.exe
+  echo "copied output to clipboard (for web visualizer)"
 fi

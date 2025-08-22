@@ -1,10 +1,16 @@
 #if !defined(LOCAL_DEBUG) && !defined(LOCAL_MEASURE)
 #define NDEBUG
+#pragma GCC optimize("O3")
 #endif
 #include "atcoder/all"
 #include "bits/stdc++.h"
 #include "boost/container/static_vector.hpp"
 #include "boost/range/irange.hpp"
+#include "competitive/container/dual_array.hpp"
+#include "competitive/container/static_dual_array.hpp"
+#include "competitive/container/static_queue.hpp"
+#include "competitive/container/static_stack.hpp"
+#include "competitive/data_structure/min_max_heap.hpp"
 #include "competitive/heuristic.hpp"
 #include "competitive/math.hpp"
 #include "competitive/stdio.hpp"
@@ -24,7 +30,9 @@ public:
 };
 } // namespace debug
 #endif
-#define IGNORE [[maybe_unused]] auto _
+#define IGNORE_CAT_I2(a, b) a##b
+#define IGNORE_CAT_I(a, b) IGNORE_CAT_I2(a, b)
+#define IGNORE [[maybe_unused]] auto IGNORE_CAT_I(_ignore, __COUNTER__)
 
 void Main() {}
 
